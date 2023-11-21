@@ -1,0 +1,15 @@
+[submodule "libs/FileIO"]
+	path = libs/FileIO
+	url = git@github.com:Iprime111/FileIO.git
+[submodule "libs/CustomAssert"]
+	path = libs/CustomAssert
+	url = git@github.com:Iprime111/CustomAssert.git
+[submodule "libs/ColorConsole"]
+	path = libs/ColorConsole
+	url = git@github.com:Iprime111/ColorConsole.git
+[submodule "libs/Tree"]
+	path = libs/Tree
+	url = https://github.com/Iprime111/BinaryTree
+[submodule "libs/Buffer"]
+	path = libs/Buffer
+	url = git@github.com:Iprime111/Buffer.git
