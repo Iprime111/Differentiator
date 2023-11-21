@@ -1,0 +1,5 @@
+add_subdirectory (Buffer)
+add_subdirectory (FileIO)
+add_subdirectory (CustomAssert)
+add_subdirectory (ColorConsole)
+add_subdirectory (Tree)

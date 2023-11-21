@@ -8,6 +8,7 @@
 	path = libs/ColorConsole
 	url = git@github.com:Iprime111/ColorConsole.git
 [submodule "libs/Tree"]
+    branch = tree-lib
 	path = libs/Tree
 	url = https://github.com/Iprime111/BinaryTree
 [submodule "libs/Buffer"]
