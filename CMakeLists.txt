@@ -6,6 +6,7 @@ set (DEBUG_FLAGS   -ggdb3 -O0 -Wall -Wextra -Weffc++ -Waggressive-loop-optimizat
 set (RELEASE_FLAGS -std=c++17)
 
 include_directories (${CMAKE_CURRENT_SOURCE_DIR}/headers)
+include_directories (${CMAKE_CURRENT_SOURCE_DIR}/headers/Differentiator)
 
 add_executable (${PROJECT_NAME})
 

@@ -8,9 +8,12 @@
 
 enum DifferentiatorError {
     NO_DIFFERENTIATOR_ERRORS    = 0,
-    DIFFERENTIATOR_NULL_POINTER = 1,
-    TREE_ERROR                  = 2,
-    NODE_NULL_POINTER           = 3,
+    DIFFERENTIATOR_NULL_POINTER = 1 << 0,
+    TREE_ERROR                  = 1 << 1,
+    NODE_NULL_POINTER           = 1 << 2,
+    WRONG_OPERATION             = 1 << 3,
+    NO_VALUE                    = 1 << 4,
+    OUTPUT_FILE_ERROR           = 1 << 5,
 };
 
 enum NodeType {
@@ -19,14 +22,13 @@ enum NodeType {
     VARIABLE_NODE  = 2,
 };
 
+#define OPERATOR(NAME, DESIGNATION, ...) NAME,
+
 enum Operation {
-    ADD   = 0,
-    SUB   = 1,
-    MUL   = 2,
-    DIV   = 3,
-    SQRT  = 4,
-    POWER = 5,
+    #include "DifferentiatorOperations.def"
 };
+
+#undef OPERATOR
 
 union NodeValue {
     double    numericValue  = NAN;
@@ -45,9 +47,13 @@ struct Differentiator {
     DifferentiatorError errors = NO_DIFFERENTIATOR_ERRORS;
 };
 
+typedef double (* operation_t) (double, double);
+
 DifferentiatorError InitDifferentiator    (Differentiator *differentiator);
 DifferentiatorError DestroyDifferentiator (Differentiator *differentiator);
-DifferentiatorError VerifyDifferentiator  (Differentiator *differentiator); 
+DifferentiatorError VerifyDifferentiator  (Differentiator *differentiator);
+
+DifferentiatorError EvalTree (Differentiator *differentiator, double *value);
     
 #define WriteError(differentiator, error)  (differentiator)->errors = (DifferentiatorError) (error | (differentiator)->errors)
 #define ReturnError(differentiator, error)          \

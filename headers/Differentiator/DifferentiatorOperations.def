@@ -1,0 +1,33 @@
+// OPERATOR (NAME, DESIGNATION, ...)
+
+OPERATOR (ADD, "+", {
+    RETURN EvalSubtree (left) + EvalSubtree (right);
+})
+
+OPERATOR (SUB, "-", {
+    RETURN EvalSubtree (left) - EvalSubtree (right);
+})
+
+OPERATOR (MUL, "*", {
+    RETURN EvalSubtree (left) * EvalSubtree (right);
+})
+
+OPERATOR (DIV, "/", {
+    RETURN EvalSubtree (left) / EvalSubtree (right);
+})
+
+OPERATOR (POWER, "^", {
+    RETURN pow (EvalSubtree (left), EvalSubtree (right)); 
+})
+
+OPERATOR (SIN, "sin", {
+    RETURN sin (EvalSubtree (left));
+})
+
+OPERATOR (COS, "cos", {
+    RETURN cos (EvalSubtree (left));
+})
+
+OPERATOR (SQRT, "sqrt", {
+    RETURN sqrt (EvalSubtree (left));
+})
