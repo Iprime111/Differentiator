@@ -4,7 +4,12 @@
 #include <stddef.h>
 #include <math.h>
 
+#include "Buffer.h"
 #include "Tree.h"
+
+const size_t MAX_NAME_LENGTH = 256;
+
+#define ON_DEBUG(...) __VA_ARGS__
 
 enum DifferentiatorError {
     NO_DIFFERENTIATOR_ERRORS    = 0,
@@ -14,10 +19,13 @@ enum DifferentiatorError {
     WRONG_OPERATION             = 1 << 3,
     NO_VALUE                    = 1 << 4,
     OUTPUT_FILE_ERROR           = 1 << 5,
+    INPUT_FILE_ERROR            = 1 << 6,
+    DUMP_ERROR                  = 1 << 7,
+    NAME_TABLE_ERROR            = 1 << 8,
 };
 
 enum NodeType {
-    NUMBER_NODE    = 0,
+    NUMERIC_NODE    = 0,
     OPERATION_NODE = 1,
     VARIABLE_NODE  = 2,
 };
@@ -37,12 +45,19 @@ union NodeValue {
 };
 
 struct DifferentiatorNode {
-    NodeType  type  = NUMBER_NODE;
+    NodeType  type  = NUMERIC_NODE;
     NodeValue value = {.numericValue = NAN}; 
+};
+
+struct NameTableRecord {
+    char *name   = NULL;
+    double value = NAN;  
 };
 
 struct Differentiator {
     Tree::Tree <DifferentiatorNode> expressionTree = {};
+
+    Buffer <NameTableRecord> nameTable = {};
 
     DifferentiatorError errors = NO_DIFFERENTIATOR_ERRORS;
 };
@@ -54,7 +69,9 @@ DifferentiatorError DestroyDifferentiator (Differentiator *differentiator);
 DifferentiatorError VerifyDifferentiator  (Differentiator *differentiator);
 
 DifferentiatorError EvalTree (Differentiator *differentiator, double *value);
-    
+
+long long CompareNames (void *value1, void *value2);
+
 #define WriteError(differentiator, error)  (differentiator)->errors = (DifferentiatorError) (error | (differentiator)->errors)
 #define ReturnError(differentiator, error)          \
     do {                                            \

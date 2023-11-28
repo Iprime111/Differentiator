@@ -1,5 +1,9 @@
 // OPERATOR (NAME, DESIGNATION, ...)
 
+OPERATOR (NO_OPERATOR, "\0", {
+
+})
+
 OPERATOR (ADD, "+", {
     RETURN EvalSubtree (left) + EvalSubtree (right);
 })

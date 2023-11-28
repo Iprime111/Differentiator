@@ -21,7 +21,7 @@ static double EvalInternal (Differentiator *differentiator, const Tree::Node <Di
     PushLog (2);
 
     switch (rootNode->nodeData.type) {
-        case NUMBER_NODE:
+        case NUMERIC_NODE:
             RETURN rootNode->nodeData.value.numericValue;
         case OPERATION_NODE:
             #define OPERATOR(NAME, DESIGNATION, ...)                \
@@ -35,11 +35,18 @@ static double EvalInternal (Differentiator *differentiator, const Tree::Node <Di
 
             WriteError (differentiator, WRONG_OPERATION);
             RETURN NAN;
-            break;
 
         case VARIABLE_NODE:
-            //FIXME: do a name table lookup 
-            RETURN NO_DIFFERENTIATOR_ERRORS;
+            if (rootNode->nodeData.value.variableIndex >= differentiator->nameTable.currentIndex) {
+                WriteError (differentiator, NAME_TABLE_ERROR);
+                RETURN NAN;
+            }
+
+            RETURN differentiator->nameTable.data [rootNode->nodeData.value.variableIndex].value;
+
+        default:
+            WriteError (differentiator, WRONG_OPERATION);
+            RETURN NAN;
     }
     
     RETURN NAN;
