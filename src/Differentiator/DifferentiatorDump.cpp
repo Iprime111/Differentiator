@@ -94,7 +94,7 @@ static DifferentiatorError EmitNodeData (Differentiator *differentiator, Tree::N
         }
 
         case OPERATION_NODE: {
-            #define OPERATOR(NAME, DESIGNATION, ...)                        \
+            #define OPERATOR(NAME, DESIGNATION, PRIORITY, ...)              \
                 if (node->nodeData.value.operation == NAME) {               \
                     WriteToDumpWithErrorCheck (dumpBuffer, DESIGNATION);    \
                 }

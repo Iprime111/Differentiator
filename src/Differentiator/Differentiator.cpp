@@ -24,7 +24,7 @@ static double EvalInternal (Differentiator *differentiator, const Tree::Node <Di
         case NUMERIC_NODE:
             RETURN rootNode->nodeData.value.numericValue;
         case OPERATION_NODE:
-            #define OPERATOR(NAME, DESIGNATION, ...)                \
+            #define OPERATOR(NAME, DESIGNATION, PRIORITY, ...)      \
                 if (rootNode->nodeData.value.operation == NAME) {   \
                     __VA_ARGS__                                     \
                 }

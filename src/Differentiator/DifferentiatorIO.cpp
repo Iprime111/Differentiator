@@ -1,4 +1,4 @@
-#include <cstdlib>
+#include <stdlib.h>
 #include <stdio.h>
 
 #include "Buffer.h"
@@ -70,9 +70,6 @@ static DifferentiatorError ReadExpressionInternal (Differentiator *differentiato
         ReadNode (Tree::LEFT_CHILD, left);
     }
 
-    rootNode->nodeData.type = (NodeType) atoi (fileText->lines [*tokenIndex].pointer);
-    (*tokenIndex)++;
-    
     if (ReadNodeContent (differentiator, rootNode, fileText, tokenIndex) != NO_DIFFERENTIATOR_ERRORS) {
         RETURN INPUT_FILE_ERROR;
     }
@@ -91,59 +88,40 @@ static DifferentiatorError ReadExpressionInternal (Differentiator *differentiato
 static DifferentiatorError ReadNodeContent (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *node, TextBuffer *fileText, size_t *tokenIndex) {
     PushLog (3);
 
-    switch (node->nodeData.type) {
-        case NUMERIC_NODE: {
-            if (sscanf (fileText->lines [*tokenIndex].pointer, "%lf", &node->nodeData.value.numericValue) <= 0) {
-                RETURN INPUT_FILE_ERROR;
-            }
-            (*tokenIndex)++;
-            
-            break;
-        }
-
-        case VARIABLE_NODE: {
-            NameTableRecord patternRecord = {.name = fileText->lines [*tokenIndex].pointer};
-            NameTableRecord *foundRecord = FindValueInBuffer (&differentiator->nameTable, &patternRecord, CompareNames);
-            
-            if (!foundRecord) {
-                NameTableRecord newRecord = {.name = (char *) calloc (MAX_NAME_LENGTH + 1, sizeof (char)), .value = NAN};
-                strncpy (newRecord.name, fileText->lines [*tokenIndex].pointer, MAX_NAME_LENGTH);
-                WriteDataToBuffer (&differentiator->nameTable, &newRecord, 1); // TODO: error check
-                foundRecord = &differentiator->nameTable.data [differentiator->nameTable.currentIndex - 1];
-            }
-
-            (*tokenIndex)++;
-
-            size_t nameIndex = (size_t) (foundRecord - differentiator->nameTable.data) / sizeof (NameTableRecord);
-            node->nodeData.value.variableIndex = nameIndex;
-            break;
-        }
-
-        case OPERATION_NODE: {
-            int operationIndex = 0;
-            if (sscanf (fileText->lines [*tokenIndex].pointer, "%d", &operationIndex) <= 0) {
-                RETURN INPUT_FILE_ERROR;
-            }
-            (*tokenIndex)++;
-
-            #define OPERATOR(NAME, ...)                     \
-                if ((int) NAME == operationIndex) {         \
-                    node->nodeData.value.operation = NAME;  \
-                    RETURN NO_DIFFERENTIATOR_ERRORS;        \
-                }                                           
-
-            #include "DifferentiatorOperations.def"
-
-            #undef OPERATOR
-
-            RETURN INPUT_FILE_ERROR;
-        }
-
-        default: {
-            RETURN INPUT_FILE_ERROR;
-        }
+    if (sscanf (fileText->lines [*tokenIndex].pointer, "%lf", &node->nodeData.value.numericValue) > 0) {
+        node->nodeData.type = NUMERIC_NODE;
+        (*tokenIndex)++;
+        RETURN NO_DIFFERENTIATOR_ERRORS;
     }
- 
+
+    #define OPERATOR(NAME, DESIGNATION, PRIORITY, ...)                          \
+        if (strcmp (DESIGNATION, fileText->lines [*tokenIndex].pointer) == 0) { \
+            node->nodeData.value.operation = NAME;                              \
+            node->nodeData.type = OPERATION_NODE;                               \
+            (*tokenIndex)++;                                                    \
+            RETURN NO_DIFFERENTIATOR_ERRORS;                                    \
+        }                                           
+
+    #include "DifferentiatorOperations.def"
+
+    #undef OPERATOR
+
+    node->nodeData.type = VARIABLE_NODE;
+
+    NameTableRecord patternRecord = {.name = fileText->lines [*tokenIndex].pointer};
+    NameTableRecord *foundRecord = FindValueInBuffer (&differentiator->nameTable, &patternRecord, CompareNames);
+    
+    if (!foundRecord) {
+        NameTableRecord newRecord = {.name = (char *) calloc (MAX_NAME_LENGTH + 1, sizeof (char)), .value = NAN};
+        strncpy (newRecord.name, fileText->lines [*tokenIndex].pointer, MAX_NAME_LENGTH);
+        WriteDataToBuffer (&differentiator->nameTable, &newRecord, 1); // TODO: error check
+        foundRecord = &differentiator->nameTable.data [differentiator->nameTable.currentIndex - 1];
+    }
+
+    (*tokenIndex)++;
+
+    size_t nameIndex = (size_t) (foundRecord - differentiator->nameTable.data) / sizeof (NameTableRecord);
+    node->nodeData.value.variableIndex = nameIndex;
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
@@ -153,7 +131,6 @@ DifferentiatorError WriteToLatex (Differentiator *differentiator, FILE *stream) 
 
     custom_assert (stream, pointer_is_null, OUTPUT_FILE_ERROR);
     VerificationInternal_ (differentiator);
-
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
