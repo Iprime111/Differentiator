@@ -1,4 +1,4 @@
-#include "stdio.h"
+#include <stdio.h>
 
 #include "DifferentiatorDump.h"
 #include "Buffer.h"
@@ -26,24 +26,29 @@ DifferentiatorError DumpExpressionTree (Differentiator *differentiator) {
     custom_assert (differentiator, pointer_is_null, DIFFERENTIATOR_NULL_POINTER);
 
     Buffer <char> dumpBuffer = {};
-    if (InitBuffer (&dumpBuffer) != BufferErrorCode::NO_BUFFER_ERRORS) {
-        RETURN DUMP_ERROR;
-    }
 
-    // TODO: error checks
+    #define CatchError(returnValue, ...)    \
+        do {                                \
+            if (!(__VA_ARGS__)) {           \
+                RETURN returnValue;         \
+            }                               \
+        } while (0)
 
-    EmitDumpHeader (differentiator, &dumpBuffer);
-
-    EmitNode (differentiator, differentiator->expressionTree.root, &dumpBuffer);
+    CatchError (DUMP_ERROR, InitBuffer (&dumpBuffer) == BufferErrorCode::NO_BUFFER_ERRORS);
+    CatchError (DUMP_ERROR, EmitDumpHeader (differentiator, &dumpBuffer) == NO_DIFFERENTIATOR_ERRORS);
+    CatchError (DUMP_ERROR, EmitNode (differentiator, differentiator->expressionTree.root, &dumpBuffer) == NO_DIFFERENTIATOR_ERRORS);
 
     WriteToDumpWithErrorCheck (&dumpBuffer, "}");
 
     FILE *dumpFile = fopen ("dump.dot", "w");
+    CatchError (DUMP_ERROR, dumpFile != NULL);
 
     fwrite (dumpBuffer.data, sizeof (char), dumpBuffer.currentIndex, dumpFile);
 
     fclose (dumpFile);
-    DestroyBuffer (&dumpBuffer);
+    CatchError (DUMP_ERROR, DestroyBuffer (&dumpBuffer) == BufferErrorCode::NO_BUFFER_ERRORS);
+
+    #undef CatchError
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
@@ -117,7 +122,7 @@ static DifferentiatorError EmitNodeData (Differentiator *differentiator, Tree::N
             WriteToDumpWithErrorCheck (dumpBuffer, " | ");
             WriteToDumpWithErrorCheck (dumpBuffer, indexBuffer);
             WriteToDumpWithErrorCheck (dumpBuffer, "}");
-
+            break;
         }
 
         default: {

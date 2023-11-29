@@ -13,6 +13,8 @@
 static DifferentiatorError ReadExpressionInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, TextBuffer *fileText, size_t *tokenIndex);
 static DifferentiatorError ReadNodeContent        (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *node, TextBuffer *fileText, size_t *tokenIndex);
 
+static void RemoveExcessWhitespaces (TextBuffer *fileText);
+
 DifferentiatorError ReadExpression (Differentiator *differentiator, char *filename) {
     PushLog (3);
     
@@ -21,7 +23,7 @@ DifferentiatorError ReadExpression (Differentiator *differentiator, char *filena
     FileBuffer fileContent = {};
     TextBuffer fileText    = {};
 
-    if (!CreateFileBuffer (&fileContent, filename)){ //TODO: rewrite library, so it can read not only from files 
+    if (!CreateFileBuffer (&fileContent, filename)) { 
         RETURN INPUT_FILE_ERROR;
     }
 
@@ -30,7 +32,8 @@ DifferentiatorError ReadExpression (Differentiator *differentiator, char *filena
         RETURN INPUT_FILE_ERROR;
     }
 
-    ChangeNewLinesToZeroes (&fileText);
+    ChangeNewLinesToZeroes  (&fileText);
+    RemoveExcessWhitespaces (&fileText);
 
     size_t tokenIndex = 0;
     DifferentiatorError error = ReadExpressionInternal (differentiator, differentiator->expressionTree.root, &fileText, &tokenIndex);
@@ -113,8 +116,14 @@ static DifferentiatorError ReadNodeContent (Differentiator *differentiator, Tree
     
     if (!foundRecord) {
         NameTableRecord newRecord = {.name = (char *) calloc (MAX_NAME_LENGTH + 1, sizeof (char)), .value = NAN};
+        if (!newRecord.name) {
+            RETURN NAME_TABLE_ERROR;
+        }
+
         strncpy (newRecord.name, fileText->lines [*tokenIndex].pointer, MAX_NAME_LENGTH);
-        WriteDataToBuffer (&differentiator->nameTable, &newRecord, 1); // TODO: error check
+        if (WriteDataToBuffer (&differentiator->nameTable, &newRecord, 1) != BufferErrorCode::NO_BUFFER_ERRORS) {
+            RETURN NAME_TABLE_ERROR;
+        } 
         foundRecord = &differentiator->nameTable.data [differentiator->nameTable.currentIndex - 1];
     }
 
@@ -144,10 +153,19 @@ DifferentiatorError WriteSubtreeToLatex (Differentiator *differentiator, Tree::N
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
-static void SkipWhitespaces (TextBuffer *fileText, size_t *tokenIndex) {
+static void RemoveExcessWhitespaces (TextBuffer *fileText) {
     PushLog (4);
     
-    //TODO:
+    size_t currentIndex = 0;
+
+    for (size_t lineIndex = 0; lineIndex < fileText->line_count; lineIndex++) {
+        if (fileText->lines [lineIndex].length > 0) {
+            fileText->lines [currentIndex] = fileText->lines [lineIndex];
+            currentIndex++;
+        }
+    }
+
+    fileText->line_count = currentIndex;
 
     RETURN;
 }
