@@ -1,37 +1,60 @@
-// OPERATOR (NAME, DESIGNATION, PRIORITY, ...)
+// OPERATOR (NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK ...)
 
-OPERATOR (NO_OPERATOR, "\0", {
-
+OPERATOR (EQUALS, "=", 4, {
+    RETURN EvalSubtree (left);
+}, {
+    WriteUnaryOperation ("=");
 })
 
 OPERATOR (ADD, "+", 4, {
     RETURN EvalSubtree (left) + EvalSubtree (right);
+}, {
+    WriteBinaryOperation ("+"); 
 })
 
 OPERATOR (SUB, "-", 4, {
     RETURN EvalSubtree (left) - EvalSubtree (right);
+}, {
+    WriteBinaryOperation ("-");
 })
 
 OPERATOR (MUL, "*", 3, {
     RETURN EvalSubtree (left) * EvalSubtree (right);
+}, {
+    WriteBinaryOperation ("\\cdot");
 })
 
 OPERATOR (DIV, "/", 3, {
     RETURN EvalSubtree (left) / EvalSubtree (right);
+}, {
+    WriteWithErrorCheck  (printBuffer, "\\frac{");
+    WriteBinaryOperation ("}{");
+    WriteWithErrorCheck  (printBuffer, "}");
 })
 
 OPERATOR (POWER, "^", 1, {
     RETURN pow (EvalSubtree (left), EvalSubtree (right)); 
+}, {
+    WriteWithErrorCheck (printBuffer, "{");
+    WriteBinaryOperation ("}^{");
+    WriteWithErrorCheck (printBuffer, "}");
 })
 
 OPERATOR (SIN, "sin", 2, {
     RETURN sin (EvalSubtree (left));
+}, {
+    WriteUnaryOperation ("sin");
 })
 
-OPERATOR (COS, "cos", 2{
+OPERATOR (COS, "cos", 2, {
     RETURN cos (EvalSubtree (left));
+}, {
+    WriteUnaryOperation ("cos");
 })
 
-OPERATOR (SQRT, "sqrt", 2 {
+OPERATOR (SQRT, "sqrt", 2, {
     RETURN sqrt (EvalSubtree (left));
+}, {
+    WriteUnaryOperation ("\\sqrt {");
+    WriteWithErrorCheck (printBuffer, "}");
 })

@@ -17,6 +17,7 @@ int main () {
     EvalTree (&differentiator, &value);
 
     printf ("%lf\n", value);
+    WriteExpressionToStream (&differentiator, stderr, differentiator.expressionTree.root->left, WriteNodeContentToLatex);
 
     DestroyDifferentiator (&differentiator);
 

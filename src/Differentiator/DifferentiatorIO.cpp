@@ -4,14 +4,17 @@
 #include "Buffer.h"
 #include "CustomAssert.h"
 #include "Differentiator.h"
+#include "DifferentiatorDump.h"
 #include "DifferentiatorIO.h"
+#include "OperationsMacros.h"
 #include "Logger.h"
 #include "FileIO.h"
 #include "TextTypes.h"
 #include "TreeDefinitions.h"
 
-static DifferentiatorError ReadExpressionInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, TextBuffer *fileText, size_t *tokenIndex);
-static DifferentiatorError ReadNodeContent        (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *node, TextBuffer *fileText, size_t *tokenIndex);
+static DifferentiatorError ReadExpressionInternal          (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, TextBuffer *fileText, size_t *tokenIndex);
+static DifferentiatorError ReadNodeContent                 (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *node, TextBuffer *fileText, size_t *tokenIndex);
+static DifferentiatorError WriteExpressionInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, nodeContentEmitter_t emitter);
 
 static void RemoveExcessWhitespaces (TextBuffer *fileText);
 
@@ -35,8 +38,14 @@ DifferentiatorError ReadExpression (Differentiator *differentiator, char *filena
     ChangeNewLinesToZeroes  (&fileText);
     RemoveExcessWhitespaces (&fileText);
 
+    if (Tree::AddNode (&differentiator->expressionTree, differentiator->expressionTree.root, Tree::LEFT_CHILD) != Tree::NO_TREE_ERRORS) {
+        DestroyFileBuffer (&fileContent);
+        free (fileText.lines);
+        RETURN TREE_ERROR;
+    }
+
     size_t tokenIndex = 0;
-    DifferentiatorError error = ReadExpressionInternal (differentiator, differentiator->expressionTree.root, &fileText, &tokenIndex);
+    DifferentiatorError error = ReadExpressionInternal (differentiator, differentiator->expressionTree.root->left, &fileText, &tokenIndex);
     if (error != NO_DIFFERENTIATOR_ERRORS) {
         free (fileText.lines);
         DestroyFileBuffer (&fileContent);    
@@ -135,20 +144,91 @@ static DifferentiatorError ReadNodeContent (Differentiator *differentiator, Tree
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
-DifferentiatorError WriteToLatex (Differentiator *differentiator, FILE *stream) {
+DifferentiatorError WriteExpressionToStream (Differentiator *differentiator, FILE *stream, Tree::Node <DifferentiatorNode> *rootNode, nodeContentEmitter_t emitter) {
     PushLog (3);
 
     custom_assert (stream, pointer_is_null, OUTPUT_FILE_ERROR);
     VerificationInternal_ (differentiator);
+    
+    Buffer <char> printBuffer = {};
+    InitBuffer (&printBuffer);
+
+    WriteExpressionInternal (differentiator, rootNode, &printBuffer, emitter);
+
+    fwrite (printBuffer.data, sizeof (char), printBuffer.currentIndex, stream);
+
+    DestroyBuffer (&printBuffer);
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
-DifferentiatorError WriteSubtreeToLatex (Differentiator *differentiator, Tree::Node <DifferentiatorNode> rootNode, FILE *stream) {
+static DifferentiatorError WriteExpressionInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, nodeContentEmitter_t emitter) {
     PushLog (3);
 
-    custom_assert (stream, pointer_is_null, OUTPUT_FILE_ERROR);
-    VerificationInternal_ (differentiator);
+    char numberBuffer [MAX_NODE_INDEX_LENGTH] = "";
+
+    if (rootNode->nodeData.type == NUMERIC_NODE) {
+        snprintf (numberBuffer, MAX_NODE_INDEX_LENGTH, "%lf", rootNode->nodeData.value.numericValue);
+        WriteWithErrorCheck (printBuffer, numberBuffer);
+        RETURN NO_DIFFERENTIATOR_ERRORS;
+    }
+
+    if (rootNode->nodeData.type == VARIABLE_NODE) {
+        WriteWithErrorCheck (printBuffer, differentiator->nameTable.data [rootNode->nodeData.value.variableIndex].name);
+        RETURN NO_DIFFERENTIATOR_ERRORS;
+    }
+
+    size_t parentPriority = 0;
+
+    #define OPERATOR(NAME, DESIGNATION, PRIORITY, ...)              \
+        if (rootNode->parent->nodeData.value.operation == NAME) {   \
+            parentPriority = PRIORITY;                              \
+        }
+
+    #include "DifferentiatorOperations.def"
+
+    #undef OPERATOR
+
+    #define OPERATOR(NAME, DESIGNATION, PRIORITY, ...)                                              \
+        if (rootNode->nodeData.value.operation == NAME) {                                           \
+            if (PRIORITY >= parentPriority)                                                         \
+                {WriteWithErrorCheck (printBuffer, "(");}                                           \
+            emitter (differentiator, rootNode, printBuffer, NAME, DESIGNATION);                     \
+            if (PRIORITY >= parentPriority)                                                         \
+                {WriteWithErrorCheck (printBuffer, ")");}                                           \
+        }
+
+    #include "DifferentiatorOperations.def"
+
+    #undef OPERATOR
+
+    RETURN NO_DIFFERENTIATOR_ERRORS;
+}
+
+DifferentiatorError WriteNodeContentToLatex (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, Operation operation, const char *designation) {
+    PushLog (4);
+
+    #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, ...)   \
+        if (operation == NAME) {                                                        \
+            LATEX_CALLBACK                                                              \
+        }
+
+    #include "DifferentiatorOperations.def"
+
+    #undef OPERATOR
+
+    RETURN NO_DIFFERENTIATOR_ERRORS;
+}
+
+DifferentiatorError WriteNodeContentToStream (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, Operation operation, const char *designation) {
+    PushLog (4);
+
+    WriteExpression (left, WriteNodeContentToStream);
+    WriteWithErrorCheck (printBuffer, designation);
+
+    if (rootNode->right) {
+        WriteExpression (right, WriteNodeContentToStream);
+    }
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }

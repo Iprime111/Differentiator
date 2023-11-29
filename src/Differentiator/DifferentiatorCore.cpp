@@ -17,6 +17,9 @@ DifferentiatorError InitDifferentiator (Differentiator *differentiator) {
         ReturnError (differentiator, TREE_ERROR);
     }
 
+    differentiator->expressionTree.root->nodeData.type            = OPERATION_NODE;
+    differentiator->expressionTree.root->nodeData.value.operation = EQUALS;
+    
     if (InitBuffer (&differentiator->nameTable) != BufferErrorCode::NO_BUFFER_ERRORS) {
         ReturnError (differentiator, NAME_TABLE_ERROR);
     }
@@ -55,6 +58,10 @@ DifferentiatorError VerifyDifferentiator (Differentiator *differentiator) {
 
     if (!differentiator) {
         RETURN DIFFERENTIATOR_NULL_POINTER;
+    }
+
+    if (differentiator->expressionTree.root->nodeData.type != OPERATION_NODE || differentiator->expressionTree.root->nodeData.value.operation != EQUALS) {
+        RETURN TREE_ERROR;
     }
 
     ON_DEBUG (VerifyDifferentiatorInternal (differentiator->expressionTree.root));

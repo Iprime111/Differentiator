@@ -3,8 +3,12 @@
 
 #include "Differentiator.h"
 
-DifferentiatorError WriteSubtreeToLatex (Differentiator *differentiator, Tree::Node <DifferentiatorNode> rootNode, FILE *stream);
-DifferentiatorError WriteToLatex        (Differentiator *differentiator, FILE *stream);
-DifferentiatorError ReadExpression      (Differentiator *differentiator, char *filename);
+typedef DifferentiatorError (* nodeContentEmitter_t) (Differentiator *, Tree::Node <DifferentiatorNode> *, Buffer <char> *, Operation, const char *);
+
+DifferentiatorError WriteNodeContentToLatex  (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, Operation operation, const char *designation);
+DifferentiatorError WriteNodeContentToStream (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, Operation operation, const char *designation);
+
+DifferentiatorError WriteExpressionToStream (Differentiator *differentiator, FILE *stream, Tree::Node <DifferentiatorNode> *rootNode, nodeContentEmitter_t emitter);
+DifferentiatorError ReadExpression          (Differentiator *differentiator, char *filename);
 
 #endif
