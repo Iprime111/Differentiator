@@ -38,6 +38,20 @@ enum Operation {
 
 #undef OPERATOR
 
+#define OPERATOR(...) 1 +
+
+const size_t OPERATIONS_COUNT =
+    #include "DifferentiatorOperations.def" 
+    0;
+
+#undef OPERATOR
+
+struct OperationData {
+    Operation name;
+    char     *designation = NULL;
+    size_t    priority    = 0;
+};
+
 union NodeValue {
     double    numericValue  = NAN;
     size_t    variableIndex;
@@ -57,18 +71,24 @@ struct NameTableRecord {
 struct Differentiator {
     Tree::Tree <DifferentiatorNode> expressionTree = {};
 
-    Buffer <NameTableRecord> nameTable = {};
+    Buffer <NameTableRecord> *nameTable = NULL;
 
     DifferentiatorError errors = NO_DIFFERENTIATOR_ERRORS;
 };
 
 typedef double (* operation_t) (double, double);
 
-DifferentiatorError InitDifferentiator    (Differentiator *differentiator);
+DifferentiatorError InitDifferentiator    (Differentiator *differentiator, Buffer <NameTableRecord> *nameTable);
 DifferentiatorError DestroyDifferentiator (Differentiator *differentiator);
 DifferentiatorError VerifyDifferentiator  (Differentiator *differentiator);
+DifferentiatorError InitNameTable    (Buffer <NameTableRecord> *nameTable);
+DifferentiatorError DestroyNameTable (Buffer <NameTableRecord> *nameTable);
 
-DifferentiatorError EvalTree (Differentiator *differentiator, double *value);
+DifferentiatorError EvalTree      (Differentiator *differentiator, double *value);
+DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex);
+
+const OperationData *findOperationByName        (const Operation name);
+const OperationData *findOperationByDesignation (const char     *designation);
 
 long long CompareNames (void *value1, void *value2);
 

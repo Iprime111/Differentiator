@@ -1,27 +1,35 @@
-// OPERATOR (NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK ...)
+// OPERATOR (NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)
 
 OPERATOR (EQUALS, "=", 4, {
     RETURN EvalSubtree (left);
 }, {
     WriteUnaryOperation ("=");
+}, {
+    RETURN OperationNode (Diff (left), NULL, EQUALS);
 })
 
 OPERATOR (ADD, "+", 4, {
     RETURN EvalSubtree (left) + EvalSubtree (right);
 }, {
     WriteBinaryOperation ("+"); 
+}, {
+    RETURN Add (Diff (left), Diff (right));
 })
 
 OPERATOR (SUB, "-", 4, {
     RETURN EvalSubtree (left) - EvalSubtree (right);
 }, {
     WriteBinaryOperation ("-");
+}, {
+    RETURN Sub (Diff (left), Diff (right));
 })
 
 OPERATOR (MUL, "*", 3, {
     RETURN EvalSubtree (left) * EvalSubtree (right);
 }, {
     WriteBinaryOperation ("\\cdot");
+}, {
+    RETURN Add (Mul (Diff (left), Copy (right)), Mul (Copy (left), Diff (right)));
 })
 
 OPERATOR (DIV, "/", 3, {
@@ -30,26 +38,34 @@ OPERATOR (DIV, "/", 3, {
     WriteWithErrorCheck  (printBuffer, "\\frac{");
     WriteBinaryOperation ("}{");
     WriteWithErrorCheck  (printBuffer, "}");
+}, {
+    RETURN Div (Sub (Mul (Diff (left), Copy (right)), Mul (Diff (right), Copy (left))), Pow (Copy (right), Const (2)));
 })
 
-OPERATOR (POWER, "^", 1, {
+OPERATOR (POW, "^", 1, {
     RETURN pow (EvalSubtree (left), EvalSubtree (right)); 
 }, {
     WriteWithErrorCheck (printBuffer, "{");
     WriteBinaryOperation ("}^{");
     WriteWithErrorCheck (printBuffer, "}");
+}, {
+    RETURN Mul (Pow (Copy (left), Copy (right)), Add (Mul (Diff (right), Ln (Copy (left))), Div (Copy (right), Copy (left))));
 })
 
 OPERATOR (SIN, "sin", 2, {
     RETURN sin (EvalSubtree (left));
 }, {
     WriteUnaryOperation ("sin");
+}, {
+    RETURN Mul (Diff (left), Cos (Copy (left)));
 })
 
 OPERATOR (COS, "cos", 2, {
     RETURN cos (EvalSubtree (left));
 }, {
     WriteUnaryOperation ("cos");
+}, {
+    RETURN Mul (Diff (left), Mul (Const (-1), Sin (Copy (left))));
 })
 
 OPERATOR (SQRT, "sqrt", 2, {
@@ -57,4 +73,24 @@ OPERATOR (SQRT, "sqrt", 2, {
 }, {
     WriteUnaryOperation ("\\sqrt {");
     WriteWithErrorCheck (printBuffer, "}");
+}, {
+    RETURN Div (Diff (left), Mul (Const (2), Sqrt (Copy (left))));
+})
+
+OPERATOR (LN, "ln", 2, {
+    RETURN log (EvalSubtree (left));
+}, {
+    WriteUnaryOperation ("\\log {");
+    WriteWithErrorCheck (printBuffer, "}");
+}, {
+    RETURN Div (Diff (left), Copy (left));
+})
+
+OPERATOR (EXP, "exp", 2, {
+    RETURN exp (EvalSubtree (left));
+}, {
+    WriteUnaryOperation ("e^{");
+    WriteWithErrorCheck (printBuffer, "}");
+}, {
+    RETURN Mul (Diff (left), Exp (Copy (left))); 
 })

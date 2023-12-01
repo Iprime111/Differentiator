@@ -111,14 +111,14 @@ static DifferentiatorError EmitNodeData (Differentiator *differentiator, Tree::N
         }
 
         case VARIABLE_NODE: {
-            if (node->nodeData.value.variableIndex >= differentiator->nameTable.currentIndex) {
+            if (node->nodeData.value.variableIndex >= differentiator->nameTable->currentIndex) {
                 RETURN NAME_TABLE_ERROR;
             }
             
-            snprintf (indexBuffer, MAX_NODE_INDEX_LENGTH, "%lf", differentiator->nameTable.data [node->nodeData.value.variableIndex].value);
+            snprintf (indexBuffer, MAX_NODE_INDEX_LENGTH, "%lf", differentiator->nameTable->data [node->nodeData.value.variableIndex].value);
 
             WriteToDumpWithErrorCheck (dumpBuffer, "{");
-            WriteToDumpWithErrorCheck (dumpBuffer, differentiator->nameTable.data [node->nodeData.value.variableIndex].name);
+            WriteToDumpWithErrorCheck (dumpBuffer, differentiator->nameTable->data [node->nodeData.value.variableIndex].name);
             WriteToDumpWithErrorCheck (dumpBuffer, " | ");
             WriteToDumpWithErrorCheck (dumpBuffer, indexBuffer);
             WriteToDumpWithErrorCheck (dumpBuffer, "}");

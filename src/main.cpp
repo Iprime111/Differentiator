@@ -5,21 +5,24 @@
 #include "DifferentiatorDump.h"
 
 int main () {
-    Differentiator differentiator = {};
+    Differentiator differentiator      = {};
+    Buffer <NameTableRecord> nameTable = {};
 
-    InitDifferentiator (&differentiator);
+    InitNameTable      (&nameTable);
+    InitDifferentiator (&differentiator, &nameTable);
 
     ReadExpression (&differentiator, "abc.txt");
+    
+    Differentiator firstDerivative = {};
+    Differentiate (&differentiator, &firstDerivative, 0);
 
-    DumpExpressionTree (&differentiator);
-
-    double value = 0;
-    EvalTree (&differentiator, &value);
-
-    printf ("%lf\n", value);
-    WriteExpressionToStream (&differentiator, stderr, differentiator.expressionTree.root->left, WriteNodeContentToLatex);
+    DumpExpressionTree (&firstDerivative);
+    WriteExpressionToStream (&firstDerivative, stdout, firstDerivative.expressionTree.root->left, WriteNodeContentToLatex);
 
     DestroyDifferentiator (&differentiator);
+    DestroyDifferentiator (&firstDerivative);
+
+    DestroyNameTable (&nameTable);
 
     return 0;
 }

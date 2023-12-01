@@ -6,7 +6,7 @@
 
 static DifferentiatorError VerifyDifferentiatorInternal (Tree::Node <DifferentiatorNode> *root);
 
-DifferentiatorError InitDifferentiator (Differentiator *differentiator) {
+DifferentiatorError InitDifferentiator (Differentiator *differentiator, Buffer <NameTableRecord> *nameTable) {
     PushLog (3);
 
     custom_assert (differentiator, pointer_is_null, DIFFERENTIATOR_NULL_POINTER);
@@ -19,10 +19,8 @@ DifferentiatorError InitDifferentiator (Differentiator *differentiator) {
 
     differentiator->expressionTree.root->nodeData.type            = OPERATION_NODE;
     differentiator->expressionTree.root->nodeData.value.operation = EQUALS;
-    
-    if (InitBuffer (&differentiator->nameTable) != BufferErrorCode::NO_BUFFER_ERRORS) {
-        ReturnError (differentiator, NAME_TABLE_ERROR);
-    }
+   
+    differentiator->nameTable = nameTable;
 
     VerificationInternal_ (differentiator);
 
@@ -40,16 +38,32 @@ DifferentiatorError DestroyDifferentiator (Differentiator *differentiator) {
         RETURN TREE_ERROR;
     }
 
-    if (!differentiator->nameTable.data) {
-        RETURN NAME_TABLE_ERROR;
+    RETURN NO_DIFFERENTIATOR_ERRORS;
+}
+
+DifferentiatorError InitNameTable (Buffer <NameTableRecord> *nameTable) {
+    PushLog (3);
+
+    custom_assert (nameTable, pointer_is_null, NAME_TABLE_ERROR);
+
+    if (InitBuffer (nameTable) != BufferErrorCode::NO_BUFFER_ERRORS) {
+        RETURN NAME_TABLE_ERROR; 
     }
 
-    for (size_t nameIndex = 0; nameIndex < differentiator->nameTable.currentIndex; nameIndex++) {
-        free (differentiator->nameTable.data [nameIndex].name);
+    RETURN NO_DIFFERENTIATOR_ERRORS;
+}
+
+DifferentiatorError DestroyNameTable (Buffer <NameTableRecord> *nameTable) {
+    PushLog (3);
+
+    custom_assert (nameTable,       pointer_is_null, NAME_TABLE_ERROR);
+
+    for (size_t nameIndex = 0; nameIndex < nameTable->currentIndex; nameIndex++) {
+        free (nameTable->data [nameIndex].name);
     }
-
-    DestroyBuffer (&differentiator->nameTable);
-
+    
+    DestroyBuffer (nameTable);
+    
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 

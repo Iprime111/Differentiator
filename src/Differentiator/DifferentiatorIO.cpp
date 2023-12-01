@@ -6,7 +6,7 @@
 #include "Differentiator.h"
 #include "DifferentiatorDump.h"
 #include "DifferentiatorIO.h"
-#include "OperationsMacros.h"
+#include "OperationsDSL.h"
 #include "Logger.h"
 #include "FileIO.h"
 #include "TextTypes.h"
@@ -14,7 +14,7 @@
 
 static DifferentiatorError ReadExpressionInternal          (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, TextBuffer *fileText, size_t *tokenIndex);
 static DifferentiatorError ReadNodeContent                 (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *node, TextBuffer *fileText, size_t *tokenIndex);
-static DifferentiatorError WriteExpressionInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, nodeContentEmitter_t emitter);
+static DifferentiatorError WriteExpressionInternal         (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, nodeContentEmitter_t emitter);
 
 static void RemoveExcessWhitespaces (TextBuffer *fileText);
 
@@ -121,7 +121,7 @@ static DifferentiatorError ReadNodeContent (Differentiator *differentiator, Tree
     node->nodeData.type = VARIABLE_NODE;
 
     NameTableRecord patternRecord = {.name = fileText->lines [*tokenIndex].pointer};
-    NameTableRecord *foundRecord = FindValueInBuffer (&differentiator->nameTable, &patternRecord, CompareNames);
+    NameTableRecord *foundRecord = FindValueInBuffer (differentiator->nameTable, &patternRecord, CompareNames);
     
     if (!foundRecord) {
         NameTableRecord newRecord = {.name = (char *) calloc (MAX_NAME_LENGTH + 1, sizeof (char)), .value = NAN};
@@ -130,15 +130,15 @@ static DifferentiatorError ReadNodeContent (Differentiator *differentiator, Tree
         }
 
         strncpy (newRecord.name, fileText->lines [*tokenIndex].pointer, MAX_NAME_LENGTH);
-        if (WriteDataToBuffer (&differentiator->nameTable, &newRecord, 1) != BufferErrorCode::NO_BUFFER_ERRORS) {
+        if (WriteDataToBuffer (differentiator->nameTable, &newRecord, 1) != BufferErrorCode::NO_BUFFER_ERRORS) {
             RETURN NAME_TABLE_ERROR;
         } 
-        foundRecord = &differentiator->nameTable.data [differentiator->nameTable.currentIndex - 1];
+        foundRecord = &differentiator->nameTable->data [differentiator->nameTable->currentIndex - 1];
     }
 
     (*tokenIndex)++;
 
-    size_t nameIndex = (size_t) (foundRecord - differentiator->nameTable.data) / sizeof (NameTableRecord);
+    size_t nameIndex = (size_t) (foundRecord - differentiator->nameTable->data) / sizeof (NameTableRecord);
     node->nodeData.value.variableIndex = nameIndex;
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
@@ -174,42 +174,29 @@ static DifferentiatorError WriteExpressionInternal (Differentiator *differentiat
     }
 
     if (rootNode->nodeData.type == VARIABLE_NODE) {
-        WriteWithErrorCheck (printBuffer, differentiator->nameTable.data [rootNode->nodeData.value.variableIndex].name);
+        WriteWithErrorCheck (printBuffer, differentiator->nameTable->data [rootNode->nodeData.value.variableIndex].name);
         RETURN NO_DIFFERENTIATOR_ERRORS;
     }
 
-    size_t parentPriority = 0;
+    const OperationData *parentOperation  = findOperationByName (rootNode->parent->nodeData.value.operation);
+    const OperationData *currentOperation = findOperationByName (rootNode->nodeData.value.operation);
 
-    #define OPERATOR(NAME, DESIGNATION, PRIORITY, ...)              \
-        if (rootNode->parent->nodeData.value.operation == NAME) {   \
-            parentPriority = PRIORITY;                              \
-        }
-
-    #include "DifferentiatorOperations.def"
-
-    #undef OPERATOR
-
-    #define OPERATOR(NAME, DESIGNATION, PRIORITY, ...)                                              \
-        if (rootNode->nodeData.value.operation == NAME) {                                           \
-            if (PRIORITY >= parentPriority)                                                         \
-                {WriteWithErrorCheck (printBuffer, "(");}                                           \
-            emitter (differentiator, rootNode, printBuffer, NAME, DESIGNATION);                     \
-            if (PRIORITY >= parentPriority)                                                         \
-                {WriteWithErrorCheck (printBuffer, ")");}                                           \
-        }
-
-    #include "DifferentiatorOperations.def"
-
-    #undef OPERATOR
+    emitter (differentiator, rootNode, printBuffer, currentOperation, parentOperation);
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
-DifferentiatorError WriteNodeContentToLatex (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, Operation operation, const char *designation) {
+DifferentiatorError WriteNodeContentToLatex (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, const OperationData *operation, const OperationData *parentOperation) {
     PushLog (4);
 
+    bool placeBrackets = (operation->priority >= parentOperation->priority) && (parentOperation->name != DIV);
+
+    if (placeBrackets) {
+        WriteWithErrorCheck (printBuffer, "(");
+    }
+
     #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, ...)   \
-        if (operation == NAME) {                                                        \
+        if (operation->name == NAME) {                                                  \
             LATEX_CALLBACK                                                              \
         }
 
@@ -217,17 +204,29 @@ DifferentiatorError WriteNodeContentToLatex (Differentiator *differentiator, Tre
 
     #undef OPERATOR
 
+    if (placeBrackets) {
+        WriteWithErrorCheck (printBuffer, ")");
+    }
+
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
-DifferentiatorError WriteNodeContentToStream (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, Operation operation, const char *designation) {
+DifferentiatorError WriteNodeContentToStream (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, const OperationData *operation, const OperationData *parentOperation) {
     PushLog (4);
 
+    if (operation->priority >= parentOperation->priority) {
+        WriteWithErrorCheck (printBuffer, "(");
+    }
+
     WriteExpression (left, WriteNodeContentToStream);
-    WriteWithErrorCheck (printBuffer, designation);
+    WriteWithErrorCheck (printBuffer, operation->designation);
 
     if (rootNode->right) {
         WriteExpression (right, WriteNodeContentToStream);
+    }
+
+    if (operation->priority >= parentOperation->priority) {
+        WriteWithErrorCheck (printBuffer, ")");
     }
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
