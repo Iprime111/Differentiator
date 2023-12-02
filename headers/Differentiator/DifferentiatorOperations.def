@@ -1,96 +1,110 @@
-// OPERATOR (NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)
+// OPERATOR (NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, NEUTRAL_ELEMENTS, ...)
 
 OPERATOR (EQUALS, "=", 4, {
-    RETURN EvalSubtree (left);
+    evalValue = EvalSubtree (left);
 }, {
     WriteUnaryOperation ("=");
 }, {
-    RETURN OperationNode (Diff (left), NULL, EQUALS);
-})
+    currentNode = OperationNode (Diff (left), NULL, EQUALS);
+}, {{}})
 
 OPERATOR (ADD, "+", 4, {
-    RETURN EvalSubtree (left) + EvalSubtree (right);
+    evalValue = EvalSubtree (left) + EvalSubtree (right);
 }, {
     WriteBinaryOperation ("+"); 
 }, {
-    RETURN Add (Diff (left), Diff (right));
+    currentNode = Add (Diff (left), Diff (right));
+}, {
+    NeutralElement {0, NAN, CollapseResult::EXPRESSION_NOT_CHANGED, (Tree::TreeEdge) (Tree::LEFT_CHILD | Tree::RIGHT_CHILD)},
 })
 
 OPERATOR (SUB, "-", 4, {
-    RETURN EvalSubtree (left) - EvalSubtree (right);
+    evalValue = EvalSubtree (left) - EvalSubtree (right);
 }, {
     WriteBinaryOperation ("-");
 }, {
-    RETURN Sub (Diff (left), Diff (right));
+    currentNode = Sub (Diff (left), Diff (right));
+}, {
+    NeutralElement {0, NAN, CollapseResult::EXPRESSION_NOT_CHANGED, (Tree::TreeEdge) (Tree::LEFT_CHILD | Tree::RIGHT_CHILD)},
 })
 
 OPERATOR (MUL, "*", 3, {
-    RETURN EvalSubtree (left) * EvalSubtree (right);
+    evalValue = EvalSubtree (left) * EvalSubtree (right);
 }, {
     WriteBinaryOperation ("\\cdot");
 }, {
-    RETURN Add (Mul (Diff (left), Copy (right)), Mul (Copy (left), Diff (right)));
+    currentNode = Add (Mul (Diff (left), Copy (right)), Mul (Copy (left), Diff (right)));
+}, {
+    NeutralElement {0, 0,   CollapseResult::COLLAPSED_TO_CONSTANT,  (Tree::TreeEdge) (Tree::LEFT_CHILD | Tree::RIGHT_CHILD)},
+    NeutralElement {1, NAN, CollapseResult::EXPRESSION_NOT_CHANGED, (Tree::TreeEdge) (Tree::LEFT_CHILD | Tree::RIGHT_CHILD)},
 })
 
 OPERATOR (DIV, "/", 3, {
-    RETURN EvalSubtree (left) / EvalSubtree (right);
+    evalValue = EvalSubtree (left) / EvalSubtree (right);
 }, {
     WriteWithErrorCheck  (printBuffer, "\\frac{");
     WriteBinaryOperation ("}{");
     WriteWithErrorCheck  (printBuffer, "}");
 }, {
-    RETURN Div (Sub (Mul (Diff (left), Copy (right)), Mul (Diff (right), Copy (left))), Pow (Copy (right), Const (2)));
+    currentNode = Div (Sub (Mul (Diff (left), Copy (right)), Mul (Diff (right), Copy (left))), Pow (Copy (right), Const (2)));
+}, {
+    NeutralElement {0, 0,   CollapseResult::COLLAPSED_TO_CONSTANT,  Tree::LEFT_CHILD} ,
+    NeutralElement {1, NAN, CollapseResult::EXPRESSION_NOT_CHANGED, Tree::RIGHT_CHILD},
 })
 
 OPERATOR (POW, "^", 1, {
-    RETURN pow (EvalSubtree (left), EvalSubtree (right)); 
+    evalValue = pow (EvalSubtree (left), EvalSubtree (right)); 
 }, {
     WriteWithErrorCheck (printBuffer, "{");
     WriteBinaryOperation ("}^{");
     WriteWithErrorCheck (printBuffer, "}");
 }, {
-    RETURN Mul (Pow (Copy (left), Copy (right)), Add (Mul (Diff (right), Ln (Copy (left))), Div (Copy (right), Copy (left))));
+    currentNode = Mul (Pow (Copy (left), Copy (right)), Add (Mul (Diff (right), Ln (Copy (left))), Div (Copy (right), Copy (left))));
+}, {
+    NeutralElement {0, 1,   CollapseResult::COLLAPSED_TO_CONSTANT,  Tree::RIGHT_CHILD},
+    NeutralElement {0, 0,   CollapseResult::COLLAPSED_TO_CONSTANT,  Tree::LEFT_CHILD} ,
+    NeutralElement {1, NAN, CollapseResult::EXPRESSION_NOT_CHANGED, Tree::RIGHT_CHILD},
 })
 
 OPERATOR (SIN, "sin", 2, {
-    RETURN sin (EvalSubtree (left));
+    evalValue = sin (EvalSubtree (left));
 }, {
     WriteUnaryOperation ("sin");
 }, {
-    RETURN Mul (Diff (left), Cos (Copy (left)));
-})
+    currentNode = Mul (Diff (left), Cos (Copy (left)));
+}, {{}})
 
 OPERATOR (COS, "cos", 2, {
-    RETURN cos (EvalSubtree (left));
+    evalValue = cos (EvalSubtree (left));
 }, {
     WriteUnaryOperation ("cos");
 }, {
-    RETURN Mul (Diff (left), Mul (Const (-1), Sin (Copy (left))));
-})
+    currentNode = Mul (Diff (left), Mul (Const (-1), Sin (Copy (left))));
+}, {{}})
 
 OPERATOR (SQRT, "sqrt", 2, {
-    RETURN sqrt (EvalSubtree (left));
+    evalValue = sqrt (EvalSubtree (left));
 }, {
     WriteUnaryOperation ("\\sqrt {");
     WriteWithErrorCheck (printBuffer, "}");
 }, {
-    RETURN Div (Diff (left), Mul (Const (2), Sqrt (Copy (left))));
-})
+    currentNode = Div (Diff (left), Mul (Const (2), Sqrt (Copy (left))));
+}, {{}})
 
 OPERATOR (LN, "ln", 2, {
-    RETURN log (EvalSubtree (left));
+    evalValue = log (EvalSubtree (left));
 }, {
     WriteUnaryOperation ("\\log {");
     WriteWithErrorCheck (printBuffer, "}");
 }, {
-    RETURN Div (Diff (left), Copy (left));
-})
+    currentNode = Div (Diff (left), Copy (left));
+}, {{}})
 
 OPERATOR (EXP, "exp", 2, {
-    RETURN exp (EvalSubtree (left));
+    evalValue = exp (EvalSubtree (left));
 }, {
     WriteUnaryOperation ("e^{");
     WriteWithErrorCheck (printBuffer, "}");
 }, {
-    RETURN Mul (Diff (left), Exp (Copy (left))); 
-})
+    currentNode = Mul (Diff (left), Exp (Copy (left))); 
+}, {{}})

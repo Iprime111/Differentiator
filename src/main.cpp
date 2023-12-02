@@ -16,7 +16,9 @@ int main () {
     Differentiator firstDerivative = {};
     Differentiate (&differentiator, &firstDerivative, 0);
 
-    DumpExpressionTree (&firstDerivative);
+    OptimizeTree (&firstDerivative);
+
+    DumpExpressionTree (&firstDerivative, "dump.dot");
     WriteExpressionToStream (&firstDerivative, stdout, firstDerivative.expressionTree.root->left, WriteNodeContentToLatex);
 
     DestroyDifferentiator (&differentiator);

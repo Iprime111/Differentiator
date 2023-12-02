@@ -20,7 +20,7 @@ static DifferentiatorError EmitNodeConnections (Tree::Node <DifferentiatorNode> 
         }                                                                                               \
     } while (0)
 
-DifferentiatorError DumpExpressionTree (Differentiator *differentiator) {
+DifferentiatorError DumpExpressionTree (Differentiator *differentiator, char *dumpFilename) {
     PushLog (3);
 
     custom_assert (differentiator, pointer_is_null, DIFFERENTIATOR_NULL_POINTER);
@@ -40,7 +40,7 @@ DifferentiatorError DumpExpressionTree (Differentiator *differentiator) {
 
     WriteToDumpWithErrorCheck (&dumpBuffer, "}");
 
-    FILE *dumpFile = fopen ("dump.dot", "w");
+    FILE *dumpFile = fopen (dumpFilename, "w");
     CatchError (DUMP_ERROR, dumpFile != NULL);
 
     fwrite (dumpBuffer.data, sizeof (char), dumpBuffer.currentIndex, dumpFile);

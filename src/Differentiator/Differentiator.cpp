@@ -5,10 +5,10 @@
 #include "Logger.h"
 #include "OperationsDSL.h"
 #include "TreeDefinitions.h"
+#include "TreeOptimizations.h"
 
 static double EvalInternal (Differentiator *differentiator, const Tree::Node <DifferentiatorNode> *rootNode);
 static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode);
-static DifferentiatorError SetParentConnections (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode);
 
 DifferentiatorError EvalTree (Differentiator *differentiator, double *value) {
     PushLog (1);
@@ -27,7 +27,9 @@ static double EvalInternal (Differentiator *differentiator, const Tree::Node <Di
     switch (rootNode->nodeData.type) {
         case NUMERIC_NODE:
             RETURN rootNode->nodeData.value.numericValue;
-        case OPERATION_NODE:
+        case OPERATION_NODE: {
+            double evalValue = NAN;
+
             #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, ...)   \
                 if (rootNode->nodeData.value.operation == NAME) {               \
                     EVAL_CALLBACK                                               \
@@ -37,8 +39,8 @@ static double EvalInternal (Differentiator *differentiator, const Tree::Node <Di
 
             #undef OPERATOR
 
-            WriteError (differentiator, WRONG_OPERATION);
-            RETURN NAN;
+            RETURN evalValue;
+        }
 
         case VARIABLE_NODE:
             if (rootNode->nodeData.value.variableIndex >= differentiator->nameTable->currentIndex) {
@@ -67,8 +69,6 @@ DifferentiatorError Differentiate (Differentiator *differentiator, Differentiato
 
     newDifferentiator->expressionTree.root = DifferentiateInternal (newDifferentiator, variableIndex, differentiator->expressionTree.root);
 
-    SetParentConnections (newDifferentiator, newDifferentiator->expressionTree.root);
-
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
@@ -83,9 +83,21 @@ static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *n
         RETURN Const (1);
     }
 
+    Tree::Node <DifferentiatorNode> *currentNode = NULL;
+
+    #define SetParent(direction)                                \
+        do {                                                    \
+            if (currentNode->direction) {                       \
+                currentNode->direction->parent = currentNode;   \
+            }                                                   \
+        } while (0)
+
     #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)    \
         if (rootNode->nodeData.value.operation == NAME) {                                               \
             DIFF_CALLBACK                                                                               \
+            SetParent (left);                                                                           \
+            SetParent (right);                                                                          \
+            RETURN currentNode;                                                                         \
         }
 
     #include "DifferentiatorOperations.def"
@@ -95,34 +107,21 @@ static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *n
     RETURN NULL;
 }
 
-static DifferentiatorError SetParentConnections (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode) {
-    PushLog (3);
+DifferentiatorError OptimizeTree (Differentiator *differentiator) {
+    PushLog (4);
 
     custom_assert (differentiator, pointer_is_null, DIFFERENTIATOR_NULL_POINTER);
-    custom_assert (rootNode,       pointer_is_null, NODE_NULL_POINTER);
+    VerificationInternal_ (differentiator);
 
-    #define SetForChild(direction)                                          \
-        do {                                                                \
-            if (rootNode->direction) {                                      \
-                rootNode->direction->parent = rootNode;                     \
-                SetParentConnections (differentiator, rootNode->direction); \
-            }                                                               \
-        } while (0)
+    OptimizationStatus status = OptimizationStatus::TREE_CHANGED;
 
-    SetForChild (left);
-    SetForChild (right);
+    while (status == OptimizationStatus::TREE_CHANGED) {
+        status = OptimizationStatus::TREE_NOT_CHANGED;
 
-    RETURN NO_DIFFERENTIATOR_ERRORS;
-}
-
-DifferentiatorError OptimizeTree (Differentiator *differentiator) {
-
-}
-
-static DifferentiatorError OptimizeSubtree (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode) {
-    PushLog (3);
-
-    // Use tree optimizations
+        status = (OptimizationStatus) ((int) status | (int) ComputeSubtree          (differentiator, differentiator->expressionTree.root->left));
+        status = (OptimizationStatus) ((int) status | (int) CollapseNeutralElements (differentiator, differentiator->expressionTree.root->left));
+    }
     
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
+

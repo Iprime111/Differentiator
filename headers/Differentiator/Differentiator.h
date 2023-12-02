@@ -8,6 +8,7 @@
 #include "Tree.h"
 
 const size_t MAX_NAME_LENGTH = 256;
+const double EPS = 1e-5;
 
 #define ON_DEBUG(...) __VA_ARGS__
 
@@ -86,6 +87,7 @@ DifferentiatorError DestroyNameTable (Buffer <NameTableRecord> *nameTable);
 
 DifferentiatorError EvalTree      (Differentiator *differentiator, double *value);
 DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex);
+DifferentiatorError OptimizeTree  (Differentiator *differentiator);
 
 const OperationData *findOperationByName        (const Operation name);
 const OperationData *findOperationByDesignation (const char     *designation);

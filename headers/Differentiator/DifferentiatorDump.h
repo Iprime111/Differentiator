@@ -15,6 +15,6 @@ const size_t MAX_NODE_INDEX_LENGTH = 32;
 #define DUMP_BACKGROUND_COLOR               "#393f87"
 #define DUMP_HEADER_NODE_COLOR              "#dbd802"
 
-DifferentiatorError DumpExpressionTree (Differentiator *differentiator);
+DifferentiatorError DumpExpressionTree (Differentiator *differentiator, char *dumpFilename);
 
 #endif
