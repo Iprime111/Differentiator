@@ -26,7 +26,7 @@ enum DifferentiatorError {
 };
 
 enum NodeType {
-    NUMERIC_NODE    = 0,
+    NUMERIC_NODE   = 0,
     OPERATION_NODE = 1,
     VARIABLE_NODE  = 2,
 };
@@ -34,6 +34,9 @@ enum NodeType {
 #define OPERATOR(NAME, DESIGNATION, ...) NAME,
 
 enum Operation {
+    OPEN_BRACKET,
+    CLOSE_BRACKET,
+    TERMINATOR,
     #include "DifferentiatorOperations.def"
 };
 
