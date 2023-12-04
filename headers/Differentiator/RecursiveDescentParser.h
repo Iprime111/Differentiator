@@ -24,13 +24,7 @@ struct ParsingContext {
 
 typedef Tree::Node <DifferentiatorNode> *(* getter_t) (ParsingContext *, Differentiator *, size_t);
 
-DifferentiatorError TreeLexer (ParsingContext *context, Differentiator *differentiator, TextBuffer *stringTokens);
-
 DifferentiatorError ParseFile (Differentiator *differentiator, char *filename);
 
-Tree::Node <DifferentiatorNode> *GetGrammar         (ParsingContext *context, Differentiator *differentiator);
-Tree::Node <DifferentiatorNode> *GetNumber          (ParsingContext *context, Differentiator *differentiator);
-Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *context, Differentiator *differentiator, size_t priority);
-Tree::Node <DifferentiatorNode> *GetUnaryOperation  (ParsingContext *context, Differentiator *differentiator, size_t priority);
-Tree::Node <DifferentiatorNode> *GetSeparator       (ParsingContext *context, Differentiator *differentiator, size_t priority);
+
 #endif
