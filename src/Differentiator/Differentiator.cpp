@@ -91,11 +91,11 @@ static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *d
 
     Tree::Node <DifferentiatorNode> *currentNode = NULL;
 
-    #define SetParent(direction)                                                                                        \
-        do {                                                                                                            \
-            if (currentNode->direction) {                                                                               \
-                currentNode->direction->parent = currentNode;                                                           \
-            }                                                                                                           \
+    #define SetParent(direction)                                                                            \
+        do {                                                                                                \
+            if (currentNode->direction) {                                                                   \
+                currentNode->direction->parent = currentNode;                                               \
+            }                                                                                               \
         } while (0)
 
     #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)        \

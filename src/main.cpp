@@ -12,15 +12,16 @@ int main () {
     InitNameTable      (&nameTable);
     InitDifferentiator (&differentiator, &nameTable);
 
-    //ReadExpression (&differentiator, "abc.txt");
     ParseFile (&differentiator, "abc.txt");
     
     DumpExpressionTree (&differentiator, "dump_init.dot");
 
     Differentiator firstDerivative = {};
-    Differentiate (&differentiator, &firstDerivative, 0, stdout);
+    FILE *reportFile = fopen ("report.tex", "w");
 
-    OptimizeTree (&firstDerivative);
+    if (reportFile) {
+        DifferentiateAndGenerateLatexReport (&differentiator, &firstDerivative, 0, reportFile);
+    }
 
     DumpExpressionTree (&firstDerivative, "dump.dot");
 
