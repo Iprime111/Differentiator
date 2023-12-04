@@ -8,7 +8,7 @@ typedef DifferentiatorError (* nodeContentEmitter_t) (Differentiator *, Tree::No
 DifferentiatorError WriteNodeContentToLatex  (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, const OperationData *operation, const OperationData *parentOperation);
 DifferentiatorError WriteNodeContentToStream (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, const OperationData *operation, const OperationData *parentOperation); 
 
-DifferentiatorError WriteExpressionToStream (Differentiator *differentiator, FILE *stream, Tree::Node <DifferentiatorNode> *rootNode, nodeContentEmitter_t emitter);
-DifferentiatorError ReadExpression          (Differentiator *differentiator, char *filename);
+DifferentiatorError WriteExpressionToStream             (Differentiator *differentiator, FILE *stream, Tree::Node <DifferentiatorNode> *rootNode, nodeContentEmitter_t emitter);
+DifferentiatorError DifferentiateAndGenerateLatexReport (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, FILE *stream);
 
 #endif

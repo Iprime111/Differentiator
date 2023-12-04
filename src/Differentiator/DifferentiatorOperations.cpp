@@ -19,6 +19,7 @@ static const OperationData operations [] = {
     } while (0)
 
 const OperationData *findOperationByName (const Operation name) {
+
     FindOperation (operations [operationIndex].name == name);
 }
 

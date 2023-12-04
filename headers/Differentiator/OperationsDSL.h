@@ -33,7 +33,7 @@
         WriteExpression (right, WriteNodeContentToLatex);   \
     } while (0)
 
-#define Diff(direction) DifferentiateInternal (newDifferentiator, variableIndex, rootNode->direction)
+#define Diff(direction) DifferentiateInternal (differentiator, newDifferentiator, variableIndex, rootNode->direction, stream)
 #define Copy(direction) CopySubtree (rootNode->direction)
 #define Const(number)   CreateNode (Tree::Node <DifferentiatorNode> {.left = NULL, .right = NULL, .parent = NULL, .nodeData = {.type = NUMERIC_NODE,  .value = {.numericValue  = number}}})
 #define Var(index)      CreateNode (Tree::Node <DifferentiatorNode> {.left = NULL, .right = NULL, .parent = NULL, .nodeData = {.type = VARIABLE_NODE, .value = {.variableIndex = index}}})

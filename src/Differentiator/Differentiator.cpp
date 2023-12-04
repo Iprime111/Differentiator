@@ -6,9 +6,11 @@
 #include "OperationsDSL.h"
 #include "TreeDefinitions.h"
 #include "TreeOptimizations.h"
+#include "DifferentiatorIO.h"
+#include <cstdio>
 
 static double EvalInternal (Differentiator *differentiator, const Tree::Node <DifferentiatorNode> *rootNode);
-static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode);
+static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode, FILE *stream);
 
 DifferentiatorError EvalTree (Differentiator *differentiator, double *value) {
     PushLog (1);
@@ -58,7 +60,7 @@ static double EvalInternal (Differentiator *differentiator, const Tree::Node <Di
     RETURN NAN;
 }
 
-DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex) {
+DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, FILE *stream) {
     PushLog (2);
 
     custom_assert (differentiator, pointer_is_null, DIFFERENTIATOR_NULL_POINTER);
@@ -67,12 +69,12 @@ DifferentiatorError Differentiate (Differentiator *differentiator, Differentiato
     InitDifferentiator (newDifferentiator, differentiator->nameTable);
     Tree::DestroySingleNode (newDifferentiator->expressionTree.root);
 
-    newDifferentiator->expressionTree.root = DifferentiateInternal (newDifferentiator, variableIndex, differentiator->expressionTree.root);
+    newDifferentiator->expressionTree.root = DifferentiateInternal (differentiator, newDifferentiator, variableIndex, differentiator->expressionTree.root, stream);
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
-static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *newDifferentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode) {
+static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode, FILE *stream) {
     PushLog (2);
 
     if (!rootNode) {
@@ -89,19 +91,26 @@ static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *n
 
     Tree::Node <DifferentiatorNode> *currentNode = NULL;
 
-    #define SetParent(direction)                                \
-        do {                                                    \
-            if (currentNode->direction) {                       \
-                currentNode->direction->parent = currentNode;   \
-            }                                                   \
+    #define SetParent(direction)                                                                            \
+        do {                                                                                                \
+            if (currentNode->direction) {                                                                   \
+                currentNode->direction->parent = currentNode;                                               \
+            }                                                                                               \
         } while (0)
 
-    #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)    \
-        if (rootNode->nodeData.value.operation == NAME) {                                               \
-            DIFF_CALLBACK                                                                               \
-            SetParent (left);                                                                           \
-            SetParent (right);                                                                          \
-            RETURN currentNode;                                                                         \
+    #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)        \
+        if (rootNode->nodeData.value.operation == NAME) {                                                   \
+            DIFF_CALLBACK                                                                                   \
+            SetParent (left);                                                                               \
+            SetParent (right);                                                                              \
+            if (rootNode->parent) {                                                                         \
+                fprintf (stream, "$$(");                                                                    \
+                WriteExpressionToStream (differentiator,    stream, rootNode,    WriteNodeContentToLatex);  \
+                fprintf (stream, ")^{'} = ");                                                               \
+                WriteExpressionToStream (newDifferentiator, stream, currentNode, WriteNodeContentToLatex);  \
+                fprintf (stream, "$$\n");                                                                   \
+            }                                                                                               \
+            RETURN currentNode;                                                                             \
         }
 
     #include "DifferentiatorOperations.def"
