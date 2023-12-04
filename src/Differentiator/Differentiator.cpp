@@ -75,6 +75,10 @@ DifferentiatorError Differentiate (Differentiator *differentiator, Differentiato
 static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *newDifferentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode) {
     PushLog (2);
 
+    if (!rootNode) {
+        RETURN NULL;
+    }
+
     if (rootNode->nodeData.type == NUMERIC_NODE || (rootNode->nodeData.type == VARIABLE_NODE && rootNode->nodeData.value.variableIndex != variableIndex)) {
         RETURN Const (0);
     }

@@ -165,6 +165,10 @@ DifferentiatorError WriteExpressionToStream (Differentiator *differentiator, FIL
 static DifferentiatorError WriteExpressionInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, nodeContentEmitter_t emitter) {
     PushLog (3);
 
+    if (!rootNode) {
+        RETURN NODE_NULL_POINTER;
+    }
+
     char numberBuffer [MAX_NODE_INDEX_LENGTH] = "";
 
     if (rootNode->nodeData.type == NUMERIC_NODE) {
@@ -188,6 +192,12 @@ static DifferentiatorError WriteExpressionInternal (Differentiator *differentiat
 
 DifferentiatorError WriteNodeContentToLatex (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, const OperationData *operation, const OperationData *parentOperation) {
     PushLog (4);
+
+    custom_assert (differentiator,  pointer_is_null,   NO_DIFFERENTIATOR_ERRORS);
+    custom_assert (rootNode,        pointer_is_null,   NODE_NULL_POINTER);
+    custom_assert (printBuffer,     pointer_is_null,   OUTPUT_FILE_ERROR);
+    custom_assert (operation,       pointer_is_null,   WRONG_OPERATION);
+    custom_assert (parentOperation, pointer_is_null,   WRONG_OPERATION);
 
     bool placeBrackets = (operation->priority >= parentOperation->priority) && (parentOperation->name != DIV);
 
@@ -213,6 +223,12 @@ DifferentiatorError WriteNodeContentToLatex (Differentiator *differentiator, Tre
 
 DifferentiatorError WriteNodeContentToStream (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, const OperationData *operation, const OperationData *parentOperation) {
     PushLog (4);
+
+    custom_assert (differentiator,  pointer_is_null,   NO_DIFFERENTIATOR_ERRORS);
+    custom_assert (rootNode,        pointer_is_null,   NODE_NULL_POINTER);
+    custom_assert (printBuffer,     pointer_is_null,   OUTPUT_FILE_ERROR);
+    custom_assert (operation,       pointer_is_null,   WRONG_OPERATION);
+    custom_assert (parentOperation, pointer_is_null,   WRONG_OPERATION);
 
     if (operation->priority >= parentOperation->priority) {
         WriteWithErrorCheck (printBuffer, "(");

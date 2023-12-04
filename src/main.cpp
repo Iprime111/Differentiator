@@ -3,6 +3,7 @@
 #include "Differentiator.h"
 #include "DifferentiatorIO.h"
 #include "DifferentiatorDump.h"
+#include "RecursiveDescentParser.h"
 
 int main () {
     Differentiator differentiator      = {};
@@ -11,8 +12,11 @@ int main () {
     InitNameTable      (&nameTable);
     InitDifferentiator (&differentiator, &nameTable);
 
-    ReadExpression (&differentiator, "abc.txt");
+    //ReadExpression (&differentiator, "abc.txt");
+    ParseFile (&differentiator, "abc.txt");
     
+    DumpExpressionTree (&differentiator, "dump_init.dot");
+
     Differentiator firstDerivative = {};
     Differentiate (&differentiator, &firstDerivative, 0);
 
