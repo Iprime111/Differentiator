@@ -148,7 +148,6 @@ DifferentiatorError WriteExpressionToStream (Differentiator *differentiator, FIL
     PushLog (3);
 
     custom_assert (stream, pointer_is_null, OUTPUT_FILE_ERROR);
-    VerificationInternal_ (differentiator);
     
     Buffer <char> printBuffer = {};
     InitBuffer (&printBuffer);
@@ -181,11 +180,17 @@ static DifferentiatorError WriteExpressionInternal (Differentiator *differentiat
         WriteWithErrorCheck (printBuffer, differentiator->nameTable->data [rootNode->nodeData.value.variableIndex].name);
         RETURN NO_DIFFERENTIATOR_ERRORS;
     }
-
-    const OperationData *parentOperation  = findOperationByName (rootNode->parent->nodeData.value.operation);
+   
     const OperationData *currentOperation = findOperationByName (rootNode->nodeData.value.operation);
 
-    emitter (differentiator, rootNode, printBuffer, currentOperation, parentOperation);
+    if (rootNode->parent) {
+        const OperationData *parentOperation  = findOperationByName (rootNode->parent->nodeData.value.operation);
+
+        emitter (differentiator, rootNode, printBuffer, currentOperation, parentOperation);
+    } else {
+        emitter (differentiator, rootNode, printBuffer, currentOperation, NULL);
+    }
+
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
@@ -197,9 +202,11 @@ DifferentiatorError WriteNodeContentToLatex (Differentiator *differentiator, Tre
     custom_assert (rootNode,        pointer_is_null,   NODE_NULL_POINTER);
     custom_assert (printBuffer,     pointer_is_null,   OUTPUT_FILE_ERROR);
     custom_assert (operation,       pointer_is_null,   WRONG_OPERATION);
-    custom_assert (parentOperation, pointer_is_null,   WRONG_OPERATION);
 
-    bool placeBrackets = (operation->priority >= parentOperation->priority) && (parentOperation->name != DIV);
+    bool placeBrackets = false;
+    if (parentOperation) {
+        placeBrackets = (operation->priority >= parentOperation->priority) && (parentOperation->name != DIV);
+    }
 
     if (placeBrackets) {
         WriteWithErrorCheck (printBuffer, "(");
@@ -228,9 +235,8 @@ DifferentiatorError WriteNodeContentToStream (Differentiator *differentiator, Tr
     custom_assert (rootNode,        pointer_is_null,   NODE_NULL_POINTER);
     custom_assert (printBuffer,     pointer_is_null,   OUTPUT_FILE_ERROR);
     custom_assert (operation,       pointer_is_null,   WRONG_OPERATION);
-    custom_assert (parentOperation, pointer_is_null,   WRONG_OPERATION);
 
-    if (operation->priority >= parentOperation->priority) {
+    if (parentOperation && operation->priority >= parentOperation->priority) {
         WriteWithErrorCheck (printBuffer, "(");
     }
 
@@ -241,7 +247,7 @@ DifferentiatorError WriteNodeContentToStream (Differentiator *differentiator, Tr
         WriteExpression (right, WriteNodeContentToStream);
     }
 
-    if (operation->priority >= parentOperation->priority) {
+    if (parentOperation && operation->priority >= parentOperation->priority) {
         WriteWithErrorCheck (printBuffer, ")");
     }
 

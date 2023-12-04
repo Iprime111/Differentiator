@@ -31,7 +31,7 @@ OPERATOR (SUB, "-", 4, {
 OPERATOR (MUL, "*", 3, {
     evalValue = EvalSubtree (left) * EvalSubtree (right);
 }, {
-    WriteBinaryOperation ("\\cdot");
+    WriteBinaryOperation ("\\cdot ");
 }, {
     currentNode = Add (Mul (Diff (left), Copy (right)), Mul (Copy (left), Diff (right)));
 }, {
@@ -42,7 +42,7 @@ OPERATOR (MUL, "*", 3, {
 OPERATOR (DIV, "/", 3, {
     evalValue = EvalSubtree (left) / EvalSubtree (right);
 }, {
-    WriteWithErrorCheck  (printBuffer, "\\frac{");
+    WriteWithErrorCheck  (printBuffer, "\\frac {");
     WriteBinaryOperation ("}{");
     WriteWithErrorCheck  (printBuffer, "}");
 }, {
@@ -69,7 +69,7 @@ OPERATOR (POW, "^", 1, {
 OPERATOR (SIN, "sin", 2, {
     evalValue = sin (EvalSubtree (left));
 }, {
-    WriteUnaryOperation ("sin");
+    WriteUnaryOperation ("\\sin ");
 }, {
     currentNode = Mul (Diff (left), Cos (Copy (left)));
 }, {{}})
@@ -77,7 +77,7 @@ OPERATOR (SIN, "sin", 2, {
 OPERATOR (COS, "cos", 2, {
     evalValue = cos (EvalSubtree (left));
 }, {
-    WriteUnaryOperation ("cos");
+    WriteUnaryOperation ("\\cos ");
 }, {
     currentNode = Mul (Diff (left), Mul (Const (-1), Sin (Copy (left))));
 }, {{}})
@@ -94,7 +94,7 @@ OPERATOR (SQRT, "sqrt", 2, {
 OPERATOR (LN, "ln", 2, {
     evalValue = log (EvalSubtree (left));
 }, {
-    WriteUnaryOperation ("\\log {");
+    WriteUnaryOperation ("\\ln {");
     WriteWithErrorCheck (printBuffer, "}");
 }, {
     currentNode = Div (Diff (left), Copy (left));
@@ -103,7 +103,7 @@ OPERATOR (LN, "ln", 2, {
 OPERATOR (EXP, "exp", 2, {
     evalValue = exp (EvalSubtree (left));
 }, {
-    WriteUnaryOperation ("e^{");
+    WriteUnaryOperation ("\\exp {");
     WriteWithErrorCheck (printBuffer, "}");
 }, {
     currentNode = Mul (Diff (left), Exp (Copy (left))); 

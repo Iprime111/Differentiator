@@ -89,7 +89,7 @@ DifferentiatorError InitNameTable    (Buffer <NameTableRecord> *nameTable);
 DifferentiatorError DestroyNameTable (Buffer <NameTableRecord> *nameTable);
 
 DifferentiatorError EvalTree      (Differentiator *differentiator, double *value);
-DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex);
+DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, FILE *stream);
 DifferentiatorError OptimizeTree  (Differentiator *differentiator);
 
 const OperationData *findOperationByName        (const Operation name);
