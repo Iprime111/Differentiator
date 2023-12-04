@@ -15,6 +15,8 @@ int main () {
     //ReadExpression (&differentiator, "abc.txt");
     ParseFile (&differentiator, "abc.txt");
     
+    DumpExpressionTree (&differentiator, "dump_init.dot");
+
     Differentiator firstDerivative = {};
     Differentiate (&differentiator, &firstDerivative, 0);
 

@@ -16,7 +16,7 @@ enum class ParsingError {
 };
 
 struct ParsingContext {
-    Tree::Node <DifferentiatorNode> *currentNode = NULL;
+    size_t currentNode = 0;
     Buffer <Tree::Node <DifferentiatorNode> *> tokens = {};
 
     ParsingError error = ParsingError::NO_PARSING_ERRORS;

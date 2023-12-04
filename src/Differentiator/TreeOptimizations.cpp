@@ -1,4 +1,5 @@
 #include "TreeOptimizations.h"
+#include "CustomAssert.h"
 #include "Differentiator.h"
 #include "Logger.h"
 #include "OperationsDSL.h"
@@ -17,7 +18,8 @@ static OptimizationStatus ProcessNeutralElement           (Differentiator *diffe
 OptimizationStatus ComputeSubtree (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode) {
     PushLog (3);
 
-    //TODO: asserts
+    custom_assert (differentiator, pointer_is_null, OptimizationStatus::OPTIMIZATION_ERROR);
+    custom_assert (rootNode,       pointer_is_null, OptimizationStatus::OPTIMIZATION_ERROR);
 
     OptimizationStatus status = OptimizationStatus::TREE_NOT_CHANGED;
     ComputeSubtreeInternal (differentiator, rootNode, &status);
@@ -27,6 +29,11 @@ OptimizationStatus ComputeSubtree (Differentiator *differentiator, Tree::Node <D
 
 static double ComputeSubtreeInternal (Differentiator *differentiator, Tree::Node<DifferentiatorNode> *rootNode, OptimizationStatus *status) {
     PushLog (3);
+
+    if (!rootNode) {
+        *status = OptimizationStatus::OPTIMIZATION_ERROR;
+        RETURN NAN;
+    }
 
     #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)    \
         if (rootNode->nodeData.value.operation == NAME) {                                               \
@@ -70,11 +77,19 @@ static double ComputeSubtreeInternal (Differentiator *differentiator, Tree::Node
 
 OptimizationStatus CollapseNeutralElements (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode) {
     PushLog (3);
+
+    custom_assert (differentiator, pointer_is_null, OptimizationStatus::OPTIMIZATION_ERROR);
+    custom_assert (rootNode,       pointer_is_null, OptimizationStatus::OPTIMIZATION_ERROR);
+
     RETURN CollapseNeutralElementsInternal (differentiator, rootNode);
 }
 
 static OptimizationStatus CollapseNeutralElementsInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode) {
     PushLog (3);
+
+    if (!rootNode) {
+        RETURN OptimizationStatus::OPTIMIZATION_ERROR;
+    }
 
     if (rootNode->nodeData.type != OPERATION_NODE) {
         RETURN OptimizationStatus::TREE_NOT_CHANGED;

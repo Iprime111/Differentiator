@@ -31,7 +31,6 @@ static void RemoveExcessWhitespaces (TextBuffer *fileText);
 DifferentiatorError TreeLexer (ParsingContext *context, Differentiator *differentiator, TextBuffer *stringTokens) {
     PushLog (3);
 
-    fprintf (stderr, "Tokens count: %lu\n", stringTokens->line_count);
     for (size_t tokenIndex = 0; tokenIndex < stringTokens->line_count; tokenIndex++) {
         double number = NAN;
 
@@ -116,47 +115,28 @@ DifferentiatorError ParseFile (Differentiator *differentiator, char *filename) {
     ParsingContext context = {.error = ParsingError::NO_PARSING_ERRORS};
 
     if (InitBuffer (&context.tokens) != BufferErrorCode::NO_BUFFER_ERRORS) {
-        //TODO: Destroy buffers
+        DestroyFileBuffer (&fileContent);
+        free (fileText.lines);
         RETURN INPUT_FILE_ERROR;
     }
 
     TreeLexer (&context, differentiator, &fileText);
 
-    fprintf (stderr, "size: %lu\n", context.tokens.currentIndex);
-    for (size_t i = 0; i < context.tokens.currentIndex; i++) {
-        if (context.tokens.data [i] == NULL) {
-            fprintf (stderr, "NULL\n");
-            continue;
-        }
-
-        if (context.tokens.data [i]->nodeData.type == NUMERIC_NODE)
-            fprintf (stderr, "%lf\n", context.tokens.data [i]->nodeData.value.numericValue);
-
-        if (context.tokens.data [i]->nodeData.type == VARIABLE_NODE)
-            fprintf (stderr, "var: %lu\n", context.tokens.data [i]->nodeData.value.variableIndex);
-
-        if (context.tokens.data [i]->nodeData.type == OPERATION_NODE) {
-            if (context.tokens.data [i]->nodeData.value.operation == OPEN_BRACKET) {
-                fprintf (stderr, "open bracket\n");
-            } else if (context.tokens.data [i]->nodeData.value.operation == CLOSE_BRACKET) {
-                fprintf (stderr, "close bracket\n");
-            } else {
-                fprintf (stderr, "operation: %ld\n", (long) context.tokens.data [i]->nodeData.value.operation);
-            }
-        }
-    }
-
     differentiator->expressionTree.root->left = GetGrammar (&context, differentiator);
 
-    DestroyBuffer (&context.tokens);
-
-
-    if (context.error != ParsingError::NO_PARSING_ERRORS) {
-        RETURN INPUT_FILE_ERROR;
-    }
-   
     DestroyFileBuffer (&fileContent);
     free (fileText.lines);
+    
+    if (differentiator->expressionTree.root->left == NULL) {
+        for (size_t tokenIndex = 0; tokenIndex < context.tokens.currentIndex; tokenIndex++) {
+            Tree::DestroySingleNode (context.tokens.data [tokenIndex]);
+        }
+
+        DestroyBuffer (&context.tokens);
+        RETURN INPUT_FILE_ERROR;
+    }
+    
+    DestroyBuffer (&context.tokens);
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
@@ -167,11 +147,14 @@ Tree::Node <DifferentiatorNode> *GetGrammar (ParsingContext *context, Differenti
         RETURN NULL;
     }
 
-    // FIXME: memory leaks are occuring in case of syntax error
+    context->currentNode = 0;
+
     Tree::Node <DifferentiatorNode> *treeRoot = NextFunction [MAX_PRIORITY] (context, differentiator, MAX_PRIORITY);
 
-    if (context->currentNode->nodeData.type == OPERATION_NODE && context->currentNode->nodeData.value.operation == TERMINATOR) {
+    if (context->tokens.data [context->currentNode]->nodeData.type == OPERATION_NODE && context->tokens.data [context->currentNode]->nodeData.value.operation == TERMINATOR) {
         context->error = ParsingError::NO_PARSING_ERRORS;
+        Tree::DestroySingleNode (context->tokens.data [context->currentNode]);
+        context->tokens.data [context->currentNode] = NULL;
         RETURN treeRoot;
     }
 
@@ -181,9 +164,10 @@ Tree::Node <DifferentiatorNode> *GetGrammar (ParsingContext *context, Differenti
 Tree::Node <DifferentiatorNode> *GetNumber (ParsingContext *context, Differentiator *differentiator) {
     PushLog (4);
 
-    SyntaxAssert (context->currentNode->nodeData.type & (NUMERIC_NODE | VARIABLE_NODE), ParsingError::NUMBER_EXPECTED);
+    SyntaxAssert (context->tokens.data [context->currentNode]->nodeData.type & (NUMERIC_NODE | VARIABLE_NODE), ParsingError::NUMBER_EXPECTED);
 
-    return context->currentNode++;
+    context->currentNode++;
+    return context->tokens.data [context->currentNode - 1];
 }
 
 Tree::Node <DifferentiatorNode> *GetUnaryOperation (ParsingContext *context, Differentiator *differentiator, size_t priority) {
@@ -196,14 +180,25 @@ Tree::Node <DifferentiatorNode> *GetUnaryOperation (ParsingContext *context, Dif
     }
     
     context->error = ParsingError::NO_PARSING_ERRORS;
-    const OperationData *operation = findOperationByName(context->currentNode->nodeData.value.operation);
+    const OperationData *operation = findOperationByName (context->tokens.data [context->currentNode]->nodeData.value.operation);
 
-    SyntaxAssert (context->currentNode->nodeData.type == OPERATION_NODE && operation->priority == priority, ParsingError::UNARY_EXPRESSION_EXPECTED);
+    if (context->tokens.data [context->currentNode]->nodeData.type == OPERATION_NODE) {
+        SyntaxAssert (context->tokens.data [context->currentNode]->nodeData.value.operation != CLOSE_BRACKET && 
+                      context->tokens.data [context->currentNode]->nodeData.value.operation != TERMINATOR &&
+                      context->tokens.data [context->currentNode]->nodeData.value.operation != OPEN_BRACKET, ParsingError::UNARY_EXPRESSION_EXPECTED);
 
-    context->currentNode->left = value;
-    value->parent = context->currentNode;
+        SyntaxAssert (operation->priority == priority, ParsingError::UNARY_EXPRESSION_EXPECTED);
+    }
 
-    RETURN context->currentNode;
+    Tree::Node <DifferentiatorNode> *operationNode = context->tokens.data [context->currentNode];
+
+    context->currentNode++;
+
+    operationNode->left         = NextFunction [priority - 1] (context, differentiator, priority - 1);
+    SyntaxAssert (operationNode->left, ParsingError::NUMBER_EXPECTED);
+    operationNode->left->parent = operationNode;
+
+    RETURN operationNode; 
 }
 
 Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *context, Differentiator *differentiator, size_t priority) {
@@ -213,10 +208,17 @@ Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *context, Di
 
     SyntaxAssert (value, context->error);
 
-    const OperationData *operation = findOperationByName (context->currentNode->nodeData.value.operation); 
+    const OperationData *operation = findOperationByName (context->tokens.data [context->currentNode]->nodeData.value.operation); 
 
-    while (context->currentNode->nodeData.type == OPERATION_NODE && operation->priority == priority) {
-        Tree::Node <DifferentiatorNode> *operationNode = context->currentNode;
+    while (context->tokens.data [context->currentNode]->nodeData.type == OPERATION_NODE) {
+
+        if (context->tokens.data [context->currentNode]->nodeData.value.operation == CLOSE_BRACKET || context->tokens.data [context->currentNode]->nodeData.value.operation == TERMINATOR || operation->priority != priority) {
+            RETURN value;
+        }
+
+        SyntaxAssert (context->tokens.data [context->currentNode]->nodeData.value.operation != OPEN_BRACKET, ParsingError::BRACKET_EXPECTED);
+
+        Tree::Node <DifferentiatorNode> *operationNode = context->tokens.data [context->currentNode];
         context->currentNode++;
 
         operationNode->left = value;
@@ -234,7 +236,7 @@ Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *context, Di
     RETURN value;
 }
 Tree::Node <DifferentiatorNode> *GetSeparator (ParsingContext *context, Differentiator *differentiator, size_t priority) {
-    PushLog (3); 
+    PushLog (3);
 
     Tree::Node <DifferentiatorNode> *value = GetNumber (context, differentiator);
 
@@ -244,13 +246,17 @@ Tree::Node <DifferentiatorNode> *GetSeparator (ParsingContext *context, Differen
 
     context->error = ParsingError::NO_PARSING_ERRORS;
 
-    if (context->currentNode->nodeData.type == OPERATION_NODE && context->currentNode->nodeData.value.operation == OPEN_BRACKET) {
+    if (context->tokens.data [context->currentNode]->nodeData.type == OPERATION_NODE && context->tokens.data [context->currentNode]->nodeData.value.operation == OPEN_BRACKET) {
+        Tree::DestroySingleNode (context->tokens.data [context->currentNode]);
+        context->tokens.data [context->currentNode] = NULL;
         context->currentNode++;
 
         value = NextFunction [MAX_PRIORITY] (context, differentiator, MAX_PRIORITY);
         
         SyntaxAssert (value, context->error);
-        SyntaxAssert(context->currentNode->nodeData.type == OPERATION_NODE && context->currentNode->nodeData.value.operation == CLOSE_BRACKET, ParsingError::BRACKET_EXPECTED);
+        SyntaxAssert(context->tokens.data [context->currentNode]->nodeData.type == OPERATION_NODE && context->tokens.data [context->currentNode]->nodeData.value.operation == CLOSE_BRACKET, ParsingError::BRACKET_EXPECTED);
+        Tree::DestroySingleNode (context->tokens.data [context->currentNode]);
+        context->tokens.data [context->currentNode] = NULL;
         context->currentNode++;
 
         RETURN value;
