@@ -1,3 +1,5 @@
+#include "stdio.h"
+
 #include "Buffer.h"
 #include "FileIO.h"
 #include "Differentiator.h"
@@ -7,7 +9,6 @@
 #include "TreeDefinitions.h"
 #include "TreeOptimizations.h"
 #include "DifferentiatorIO.h"
-#include <cstdio>
 
 static double EvalInternal (Differentiator *differentiator, const Tree::Node <DifferentiatorNode> *rootNode);
 static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode, FILE *stream);
@@ -16,7 +17,8 @@ DifferentiatorError EvalTree (Differentiator *differentiator, double *value) {
     PushLog (1);
 
     custom_assert (value, pointer_is_null, DIFFERENTIATOR_NULL_POINTER);
-    VerificationInternal_ (differentiator);
+    VerificationInternal_ (differentiator); 
+        
 
     *value = EvalInternal (differentiator, differentiator->expressionTree.root);
 
@@ -74,7 +76,8 @@ DifferentiatorError Differentiate (Differentiator *differentiator, Differentiato
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
-static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode, FILE *stream) {
+static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, Differentiator *newDifferentiator, 
+        size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode, FILE *stream) {
     PushLog (2);
 
     if (!rootNode) {

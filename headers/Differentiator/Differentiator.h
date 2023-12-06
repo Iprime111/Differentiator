@@ -23,6 +23,7 @@ enum DifferentiatorError {
     INPUT_FILE_ERROR            = 1 << 6,
     DUMP_ERROR                  = 1 << 7,
     NAME_TABLE_ERROR            = 1 << 8,
+    NO_PARSING_CONTEXT          = 1 << 9,
 };
 
 enum NodeType {
@@ -34,8 +35,6 @@ enum NodeType {
 #define OPERATOR(NAME, DESIGNATION, ...) NAME,
 
 enum Operation {
-    OPEN_BRACKET,
-    CLOSE_BRACKET,
     TERMINATOR,
     #include "DifferentiatorOperations.def"
 };

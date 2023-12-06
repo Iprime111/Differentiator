@@ -8,6 +8,9 @@ OPERATOR (EQUALS, "=", 4, {
     currentNode = OperationNode (Diff (left), NULL, EQUALS);
 }, {{}})
 
+OPERATOR (OPEN_BRACKET,  "(", 0, {}, {}, {}, {{}})
+OPERATOR (CLOSE_BRACKET, ")", 0, {}, {}, {}, {{}})
+
 OPERATOR (ADD, "+", 4, {
     evalValue = EvalSubtree (left) + EvalSubtree (right);
 }, {

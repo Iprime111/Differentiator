@@ -16,137 +16,56 @@
         RETURN NULL;                                                            \
     }
 
-static DifferentiatorError TreeLexer (ParsingContext *context, Differentiator *differentiator, TextBuffer *stringTokens);
-
 static Tree::Node <DifferentiatorNode> *GetGrammar         (ParsingContext *context, Differentiator *differentiator);
 static Tree::Node <DifferentiatorNode> *GetNumber          (ParsingContext *context, Differentiator *differentiator);
 static Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *context, Differentiator *differentiator, size_t priority);
 static Tree::Node <DifferentiatorNode> *GetUnaryOperation  (ParsingContext *context, Differentiator *differentiator, size_t priority);
 static Tree::Node <DifferentiatorNode> *GetSeparator       (ParsingContext *context, Differentiator *differentiator, size_t priority);
 
-static void RemoveExcessWhitespaces (TextBuffer *fileText);
+//FIXME: Grammar parsing is not working correctly
 
-const getter_t NextFunction [] = {GetSeparator, GetBinaryOperation, GetUnaryOperation, GetBinaryOperation, GetBinaryOperation};
-
-#define WriteNodePointer(node)                                                                              \
-    do {                                                                                                    \
-        Tree::Node <DifferentiatorNode> *nodePointer = node;                                                \
-        if (WriteDataToBuffer (&context->tokens, &nodePointer, 1) != BufferErrorCode::NO_BUFFER_ERRORS) {   \
-            RETURN INPUT_FILE_ERROR;                                                                        \
-        }                                                                                                   \
-    } while (0)
+static const getter_t NextFunction [] = {GetSeparator, GetBinaryOperation, GetUnaryOperation, GetBinaryOperation, GetBinaryOperation};
 
 DifferentiatorError ParseFile (Differentiator *differentiator, char *filename) {
     PushLog (2);
 
     FileBuffer fileContent = {};
-    TextBuffer fileText    = {};
 
     if (!CreateFileBuffer (&fileContent, filename)) { 
         RETURN INPUT_FILE_ERROR;
     }
 
-    if (!ReadFileLines (filename, &fileContent, &fileText, ' ')){
+    if (!ReadFile (filename, &fileContent)){
         DestroyFileBuffer (&fileContent);
         RETURN INPUT_FILE_ERROR;
-    }
-
-    ChangeNewLinesToZeroes  (&fileText);
-    RemoveExcessWhitespaces (&fileText);
+    } 
 
     ParsingContext context = {.error = ParsingError::NO_PARSING_ERRORS};
 
     if (InitBuffer (&context.tokens) != BufferErrorCode::NO_BUFFER_ERRORS) {
         DestroyFileBuffer (&fileContent);
-        free (fileText.lines);
         RETURN INPUT_FILE_ERROR;
     }
 
-    TreeLexer (&context, differentiator, &fileText);
+    TreeLexer (&context, differentiator, &fileContent);
 
     differentiator->expressionTree.root->left = GetGrammar (&context, differentiator);
 
-    DestroyFileBuffer (&fileContent);
-    free (fileText.lines);
-    
+    DestroyFileBuffer (&fileContent); 
+   
+    DifferentiatorError error = NO_DIFFERENTIATOR_ERRORS;
+
     if (differentiator->expressionTree.root->left == NULL) {
         for (size_t tokenIndex = 0; tokenIndex < context.tokens.currentIndex; tokenIndex++) {
             Tree::DestroySingleNode (context.tokens.data [tokenIndex]);
         }
 
-        DestroyBuffer (&context.tokens);
-        RETURN INPUT_FILE_ERROR;
+        error = INPUT_FILE_ERROR;
     }
     
     DestroyBuffer (&context.tokens);
-    RETURN NO_DIFFERENTIATOR_ERRORS;
+    RETURN error;
 }
-
-static DifferentiatorError TreeLexer (ParsingContext *context, Differentiator *differentiator, TextBuffer *stringTokens) {
-    PushLog (3);
-
-    for (size_t tokenIndex = 0; tokenIndex < stringTokens->line_count; tokenIndex++) {
-        double number = NAN;
-
-        #define ReadBracket(symbol, name)                                   \
-            if (stringTokens->lines [tokenIndex].pointer [0] == symbol) {   \
-                if (strlen (stringTokens->lines [tokenIndex].pointer) != 1) \
-                    {RETURN INPUT_FILE_ERROR;}                              \
-                WriteNodePointer (OperationNode (NULL, NULL, name));        \
-                continue;                                                   \
-            }
-
-        ReadBracket ('(', OPEN_BRACKET);
-        ReadBracket (')', CLOSE_BRACKET);
-
-        #undef ReadBracket
-
-        if (sscanf (stringTokens->lines [tokenIndex].pointer, "%lf", &number) > 0) {
-            WriteNodePointer (Const (number));
-            continue;
-        }
-
-        //TODO: use find function
-
-        #define OPERATOR(NAME, DESIGNATION, PRIORITY, ...)                              \
-            if (strcmp (DESIGNATION, stringTokens->lines [tokenIndex].pointer) == 0) {  \
-                WriteNodePointer (OperationNode (NULL, NULL, NAME));                    \
-                continue;                                                               \
-            }
-        
-        #include "DifferentiatorOperations.def"
-
-        #undef OPERATOR
-
-        NameTableRecord patternRecord = {.name = stringTokens->lines [tokenIndex].pointer};
-        NameTableRecord *foundRecord = FindValueInBuffer (differentiator->nameTable, &patternRecord, CompareNames);
-
-        if (!foundRecord) {
-
-            NameTableRecord newRecord = {.name = (char *) calloc (MAX_NAME_LENGTH, sizeof (char)), .value = NAN};    
-            if (!newRecord.name) {
-                RETURN NAME_TABLE_ERROR;
-            }
-
-            strncpy (newRecord.name, stringTokens->lines [tokenIndex].pointer, MAX_NAME_LENGTH);
-
-            if (WriteDataToBuffer (differentiator->nameTable, &newRecord, 1) != BufferErrorCode::NO_BUFFER_ERRORS) {
-                RETURN NAME_TABLE_ERROR;
-            } 
-
-            foundRecord = &differentiator->nameTable->data [differentiator->nameTable->currentIndex - 1];
-        }
-
-        size_t nameIndex = (size_t) (foundRecord - differentiator->nameTable->data) / sizeof (NameTableRecord);
-        WriteNodePointer (Var (nameIndex)); 
-    }
-
-    WriteNodePointer (OperationNode (NULL, NULL, TERMINATOR));
-
-    RETURN NO_DIFFERENTIATOR_ERRORS;
-}
-
-#undef WriteNodePointer
 
 static Tree::Node <DifferentiatorNode> *GetGrammar (ParsingContext *context, Differentiator *differentiator) {
     PushLog (3);
@@ -220,7 +139,8 @@ static Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *cont
 
     while (context->tokens.data [context->currentNode]->nodeData.type == OPERATION_NODE) {
 
-        if (context->tokens.data [context->currentNode]->nodeData.value.operation == CLOSE_BRACKET || context->tokens.data [context->currentNode]->nodeData.value.operation == TERMINATOR || operation->priority != priority) {
+        if (context->tokens.data [context->currentNode]->nodeData.value.operation == CLOSE_BRACKET || 
+               context->tokens.data [context->currentNode]->nodeData.value.operation == TERMINATOR || operation->priority != priority) {
             RETURN value;
         }
 
@@ -273,19 +193,3 @@ static Tree::Node <DifferentiatorNode> *GetSeparator (ParsingContext *context, D
     SyntaxAssert (false, ParsingError::NUMBER_EXPECTED);
 }
 
-static void RemoveExcessWhitespaces (TextBuffer *fileText) {
-    PushLog (4);
-    
-    size_t currentIndex = 0;
-
-    for (size_t lineIndex = 0; lineIndex < fileText->line_count; lineIndex++) {
-        if (fileText->lines [lineIndex].length > 0) {
-            fileText->lines [currentIndex] = fileText->lines [lineIndex];
-            currentIndex++;
-        }
-    }
-
-    fileText->line_count = currentIndex;
-
-    RETURN;
-}
