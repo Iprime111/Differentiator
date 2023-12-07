@@ -49,7 +49,7 @@ ParsingError TreeLexer (ParsingContext *context, Differentiator *differentiator,
             if (sscanf (symbol, "%lf%n", &number, &numberLength) > 0) {
                 WriteNodePointer (Const (number));
 
-                fprintf (stderr, "Const: %lf\n", number);
+                fprintf (stderr, "%lu) Const: %lf\n", context->tokens.currentIndex - 1, number);
 
                 symbol += numberLength;
                 continue;
@@ -72,7 +72,7 @@ ParsingError TreeLexer (ParsingContext *context, Differentiator *differentiator,
             if (operation) {
                 WriteNodePointer (OperationNode (NULL, NULL, operation->name));
                 isOperation = true;
-                fprintf (stderr, "Operation: %s\n", operation->designation);
+                fprintf (stderr, "%lu) Operation: %s\n", context->tokens.currentIndex - 1, operation->designation);
 
                 break;
             }
@@ -107,7 +107,7 @@ ParsingError TreeLexer (ParsingContext *context, Differentiator *differentiator,
         size_t nameIndex = (size_t) (foundRecord - differentiator->nameTable->data) / sizeof (NameTableRecord);
         
         WriteNodePointer (Var (nameIndex));
-        fprintf (stderr, "Var: (%lu) %s\n", nameIndex, word);
+        fprintf (stderr, "%lu) Var: (%lu) %s\n", context->tokens.currentIndex - 1, nameIndex, word);
     }
     
     free (word);
