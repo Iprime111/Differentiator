@@ -1,3 +1,4 @@
+#include <cstdlib>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -11,6 +12,7 @@
 #include "FileIO.h"
 #include "TextTypes.h"
 #include "TreeDefinitions.h"
+#include "LatexPhrases.h"
 
 static DifferentiatorError WriteExpressionInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <char> *printBuffer, nodeContentEmitter_t emitter);
 
@@ -146,6 +148,15 @@ DifferentiatorError DifferentiateAndGenerateLatexReport (Differentiator *differe
     WriteExpressionToStream (newDifferentiator, stream, newDifferentiator->expressionTree.root, WriteNodeContentToLatex);
 
     fprintf (stream, "$$\n\\end{document}");
+
+    RETURN NO_DIFFERENTIATOR_ERRORS;
+}
+
+DifferentiatorError PrintPhrase (FILE *stream) {
+    PushLog (3);
+
+    if (rand () < RAND_MAX * PHRASE_RATE)
+        fprintf (stream, "\\textbf{%s}\\\\\n", Phrases [(size_t) rand () % PHRASES_COUNT]);
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }

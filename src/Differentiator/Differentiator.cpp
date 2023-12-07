@@ -107,6 +107,7 @@ static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *d
             SetParent (left);                                                                               \
             SetParent (right);                                                                              \
             if (rootNode->parent) {                                                                         \
+                PrintPhrase (stream);                                                                       \
                 fprintf (stream, "$$(");                                                                    \
                 WriteExpressionToStream (differentiator,    stream, rootNode,    WriteNodeContentToLatex);  \
                 fprintf (stream, ")^{'} = ");                                                               \

@@ -11,6 +11,8 @@ DifferentiatorError InitDifferentiator (Differentiator *differentiator, Buffer <
 
     custom_assert (differentiator, pointer_is_null, DIFFERENTIATOR_NULL_POINTER);
 
+    srand ((unsigned int) time (NULL));
+
     differentiator->errors = NO_DIFFERENTIATOR_ERRORS;
     
     if (Tree::InitTree (&differentiator->expressionTree) != Tree::NO_TREE_ERRORS) {

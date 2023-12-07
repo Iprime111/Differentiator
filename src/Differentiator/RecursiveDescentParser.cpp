@@ -13,7 +13,6 @@
 #define SyntaxAssert(EXPRESSION, ERROR)                                         \
     if (!(EXPRESSION)) {                                                        \
         context->error = (ParsingError) ((int) context->error | (int) ERROR);   \
-        fprintf (stderr, "Error in %s (line %d): %d, Node %lu\n", __FUNCTION__, __LINE__, (int) ERROR, context->currentNode);       \
         RETURN NULL;                                                            \
     }
 
@@ -22,8 +21,6 @@ static Tree::Node <DifferentiatorNode> *GetNumber          (ParsingContext *cont
 static Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *context, Differentiator *differentiator, size_t priority);
 static Tree::Node <DifferentiatorNode> *GetUnaryOperation  (ParsingContext *context, Differentiator *differentiator, size_t priority);
 static Tree::Node <DifferentiatorNode> *GetSeparator       (ParsingContext *context, Differentiator *differentiator, size_t priority);
-
-//FIXME: Grammar parsing is not working correctly
 
 static const getter_t NextFunction [] = {GetSeparator, GetBinaryOperation, GetUnaryOperation, GetBinaryOperation, GetBinaryOperation};
 
@@ -101,9 +98,6 @@ static Tree::Node <DifferentiatorNode> *GetNumber (ParsingContext *context, Diff
 static Tree::Node <DifferentiatorNode> *GetUnaryOperation (ParsingContext *context, Differentiator *differentiator, size_t priority) {
     PushLog (3);
 
-    fprintf (stderr, "Get unary  (priority: %lu): %lu\n", priority, context->currentNode);
-
-    fprintf (stderr, "Get unary  (pr: %lu), calling next for node %lu\n", priority, context->currentNode);
     Tree::Node <DifferentiatorNode> *value = NextFunction [priority - 1] (context, differentiator, priority - 1);
 
     if (value) {
@@ -125,7 +119,6 @@ static Tree::Node <DifferentiatorNode> *GetUnaryOperation (ParsingContext *conte
 
     context->currentNode++;
 
-    fprintf (stderr, "Get unary  (pr: %lu), calling next for node %lu\n", priority, context->currentNode);
     operationNode->left         = NextFunction [priority - 1] (context, differentiator, priority - 1);
     SyntaxAssert (operationNode->left, ParsingError::NUMBER_EXPECTED);
     operationNode->left->parent = operationNode;
@@ -136,9 +129,6 @@ static Tree::Node <DifferentiatorNode> *GetUnaryOperation (ParsingContext *conte
 static Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *context, Differentiator *differentiator, size_t priority) {
     PushLog (3);
 
-    fprintf (stderr, "Get binary (priority: %lu): %lu\n", priority, context->currentNode);
-
-    fprintf (stderr, "Get binary (pr: %lu), calling next for node %lu\n", priority, context->currentNode);
     Tree::Node <DifferentiatorNode> *value = NextFunction [priority - 1] (context, differentiator, priority - 1);
 
     SyntaxAssert (value, context->error);
@@ -158,7 +148,6 @@ static Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *cont
         operationNode->left = value;
         value->parent       = operationNode; 
 
-        fprintf (stderr, "Get binary (pr: %lu), calling next for node %lu\n", priority, context->currentNode);
         Tree::Node <DifferentiatorNode> *value2 = NextFunction [priority - 1] (context, differentiator, priority - 1);
         SyntaxAssert (value2, context->error);
 
@@ -172,8 +161,6 @@ static Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *cont
 }
 static Tree::Node <DifferentiatorNode> *GetSeparator (ParsingContext *context, Differentiator *differentiator, size_t priority) {
     PushLog (3);
-
-    fprintf (stderr, "Get separator: %lu\n", context->currentNode);
 
     Tree::Node <DifferentiatorNode> *value = GetNumber (context, differentiator);
 
