@@ -24,19 +24,14 @@ static Tree::Node <DifferentiatorNode> *GetSeparator       (ParsingContext *cont
 
 static const getter_t NextFunction [] = {GetSeparator, GetBinaryOperation, GetUnaryOperation, GetBinaryOperation, GetBinaryOperation};
 
-DifferentiatorError ParseFile (Differentiator *differentiator, char *filename) {
+DifferentiatorError ParseFile (Differentiator *differentiator, FILE *stream) {
     PushLog (2);
 
     FileBuffer fileContent = {};
 
-    if (!CreateFileBuffer (&fileContent, filename)) { 
-        RETURN INPUT_FILE_ERROR;
-    }
-
-    if (!ReadFile (filename, &fileContent)){
-        DestroyFileBuffer (&fileContent);
-        RETURN INPUT_FILE_ERROR;
-    } 
+    size_t bufferSize = 0;
+    getline (&fileContent.buffer, &bufferSize, stream);
+    fileContent.buffer_size = (ssize_t) strlen (fileContent.buffer);
 
     ParsingContext context = {.error = ParsingError::NO_PARSING_ERRORS};
 

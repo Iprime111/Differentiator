@@ -12,7 +12,7 @@ int main () {
     InitNameTable      (&nameTable);
     InitDifferentiator (&differentiator, &nameTable);
 
-    ParseFile (&differentiator, "abc.txt"); // TODO: add reading from stdout
+    ParseFile (&differentiator, stdin); // TODO: add reading from stdout
     
     DumpExpressionTree (&differentiator, "dump_init.dot");
 
