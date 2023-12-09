@@ -30,7 +30,7 @@ struct ParsingContext {
 
 typedef Tree::Node <DifferentiatorNode> *(* getter_t) (ParsingContext *, Differentiator *, size_t);
 
-DifferentiatorError ParseFile (Differentiator *differentiator, FILE *stream);
+DifferentiatorError ParseFile (Differentiator *differentiator, FILE *stream, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
 ParsingError TreeLexer (ParsingContext *context, Differentiator *differentiator, FileBuffer *content);
 
 #endif

@@ -1,4 +1,5 @@
 #include "TreeOptimizations.h"
+#include "Buffer.h"
 #include "CustomAssert.h"
 #include "Differentiator.h"
 #include "Logger.h"
@@ -6,28 +7,44 @@
 #include "TreeDefinitions.h"
 
 #undef  EvalSubtree
-#define EvalSubtree(subtree) ComputeSubtreeInternal (differentiator, rootNode->subtree, status)
+#define EvalSubtree(subtree) ComputeSubtreeInternal (differentiator, rootNode->subtree, status, reassignmentsBuffer)
 
-static double ComputeSubtreeInternal (Differentiator *differentiator, Tree::Node<DifferentiatorNode> *rootNode, OptimizationStatus *status);
+#define DestroyIfNotReassignment(node)                                                  \
+    do {                                                                                \
+        if (FindValueInBuffer (reassignmentsBuffer, &(node), CompareReassignments)) {   \
+            (node)->nodeData.manualDelete = true;                                       \
+        } else {                                                                        \
+            Tree::DestroySubtreeNode (&differentiator->expressionTree, node);           \
+        }                                                                               \
+    } while (0)
 
-static OptimizationStatus CollapseNeutralElementsInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode);
-static Tree::TreeEdge     GetChildNeutralElementEdge      (const NeutralElement *element, Tree::Node <DifferentiatorNode> *node);
-static OptimizationStatus ProcessNeutralElements          (Differentiator *differentiator, NeutralElement *elements,      Tree::Node <DifferentiatorNode> *node, size_t neutralElementsCount);
-static OptimizationStatus ProcessNeutralElement           (Differentiator *differentiator, const NeutralElement *element, Tree::Node <DifferentiatorNode> *node, Tree::Node <DifferentiatorNode> *nextNode);
 
-OptimizationStatus ComputeSubtree (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode) {
+static double ComputeSubtreeInternal (Differentiator *differentiator, Tree::Node<DifferentiatorNode> *rootNode, OptimizationStatus *status, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
+
+static OptimizationStatus CollapseNeutralElementsInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode,
+                                                            Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
+
+static Tree::TreeEdge     GetChildNeutralElementEdge      (const NeutralElement *element, Tree::Node <DifferentiatorNode> *node, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
+
+static OptimizationStatus ProcessNeutralElements          (Differentiator *differentiator, NeutralElement *elements,      Tree::Node <DifferentiatorNode> *node,
+                                                                size_t neutralElementsCount, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
+
+static OptimizationStatus ProcessNeutralElement           (Differentiator *differentiator, const NeutralElement *element, Tree::Node <DifferentiatorNode> *node,
+                                                            Tree::Node <DifferentiatorNode> *nextNode, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
+
+OptimizationStatus ComputeSubtree (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
     PushLog (3);
 
     custom_assert (differentiator, pointer_is_null, OptimizationStatus::OPTIMIZATION_ERROR);
     custom_assert (rootNode,       pointer_is_null, OptimizationStatus::OPTIMIZATION_ERROR);
 
     OptimizationStatus status = OptimizationStatus::TREE_NOT_CHANGED;
-    ComputeSubtreeInternal (differentiator, rootNode, &status);
+    ComputeSubtreeInternal (differentiator, rootNode, &status, reassignmentsBuffer);
 
     RETURN status;
 }
 
-static double ComputeSubtreeInternal (Differentiator *differentiator, Tree::Node<DifferentiatorNode> *rootNode, OptimizationStatus *status) {
+static double ComputeSubtreeInternal (Differentiator *differentiator, Tree::Node<DifferentiatorNode> *rootNode, OptimizationStatus *status, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
     PushLog (3);
 
     if (!rootNode) {
@@ -54,13 +71,15 @@ static double ComputeSubtreeInternal (Differentiator *differentiator, Tree::Node
                 RETURN NAN;
             }
 
-            if (rootNode == rootNode->parent->left) {
-                rootNode->parent->left  = Const (evalValue);
-            } else if (rootNode == rootNode->parent->right) {
-                rootNode->parent->right = Const (evalValue);
+            if (rootNode->parent) {
+                if (rootNode == rootNode->parent->left) {
+                    rootNode->parent->left  = Const (evalValue);
+                } else if (rootNode == rootNode->parent->right) {
+                    rootNode->parent->right = Const (evalValue);
+                }
             }
-
-            Tree::DestroySubtreeNode (&differentiator->expressionTree, rootNode);
+           
+            DestroyIfNotReassignment (rootNode);
 
             *status = OptimizationStatus::TREE_CHANGED;
             RETURN evalValue;
@@ -75,16 +94,16 @@ static double ComputeSubtreeInternal (Differentiator *differentiator, Tree::Node
     #undef OPERATOR
 }
 
-OptimizationStatus CollapseNeutralElements (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode) {
+OptimizationStatus CollapseNeutralElements (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
     PushLog (3);
 
     custom_assert (differentiator, pointer_is_null, OptimizationStatus::OPTIMIZATION_ERROR);
     custom_assert (rootNode,       pointer_is_null, OptimizationStatus::OPTIMIZATION_ERROR);
 
-    RETURN CollapseNeutralElementsInternal (differentiator, rootNode);
+    RETURN CollapseNeutralElementsInternal (differentiator, rootNode, reassignmentsBuffer);
 }
 
-static OptimizationStatus CollapseNeutralElementsInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode) {
+static OptimizationStatus CollapseNeutralElementsInternal (Differentiator *differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
     PushLog (3);
 
     if (!rootNode) {
@@ -97,9 +116,9 @@ static OptimizationStatus CollapseNeutralElementsInternal (Differentiator *diffe
 
     OptimizationStatus status = OptimizationStatus::TREE_NOT_CHANGED;
 
-    #define CollapseChild(direction)                                                                                                    \
-        if (rootNode->direction) {                                                                                                      \
-            status = (OptimizationStatus) ((int) status | (int) CollapseNeutralElementsInternal (differentiator, rootNode->direction)); \
+    #define CollapseChild(direction)                                                                                                                            \
+        if (rootNode->direction) {                                                                                                                              \
+            status = (OptimizationStatus) ((int) status | (int) CollapseNeutralElementsInternal (differentiator, rootNode->direction, reassignmentsBuffer));    \
         }
 
     #define CollapseChildren()      \
@@ -108,17 +127,17 @@ static OptimizationStatus CollapseNeutralElementsInternal (Differentiator *diffe
             CollapseChild (right);  \
         } while (0)
 
-    #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)                                                \
-        if (rootNode->nodeData.value.operation == NAME) {                                                                                           \
-            NeutralElement elements [] = __VA_ARGS__;                                                                                               \
-            size_t neutralElementsCount = sizeof (elements) / sizeof (NeutralElement);                                                              \
-            if (neutralElementsCount == 0) {                                                                                                        \
-                CollapseChildren ();                                                                                                                \
-                RETURN status;                                                                                                                      \
-            }                                                                                                                                       \
-            CollapseChildren ();                                                                                                                    \
-            status = (OptimizationStatus) ((int) status | (int) ProcessNeutralElements (differentiator, elements, rootNode, neutralElementsCount)); \
-            RETURN status;                                                                                                                          \
+    #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)                                                                        \
+        if (rootNode->nodeData.value.operation == NAME) {                                                                                                                   \
+            NeutralElement elements [] = __VA_ARGS__;                                                                                                                       \
+            size_t neutralElementsCount = sizeof (elements) / sizeof (NeutralElement);                                                                                      \
+            if (neutralElementsCount == 0) {                                                                                                                                \
+                CollapseChildren ();                                                                                                                                        \
+                RETURN status;                                                                                                                                              \
+            }                                                                                                                                                               \
+            CollapseChildren ();                                                                                                                                            \
+            status = (OptimizationStatus) ((int) status | (int) ProcessNeutralElements (differentiator, elements, rootNode, neutralElementsCount, reassignmentsBuffer));    \
+            RETURN status;                                                                                                                                                  \
         }
 
     #include "DifferentiatorOperations.def"
@@ -129,11 +148,11 @@ static OptimizationStatus CollapseNeutralElementsInternal (Differentiator *diffe
 
 }
 
-static OptimizationStatus ProcessNeutralElements (Differentiator *differentiator, NeutralElement *elements, Tree::Node <DifferentiatorNode> *node, size_t neutralElementsCount) {
+static OptimizationStatus ProcessNeutralElements (Differentiator *differentiator, NeutralElement *elements, Tree::Node <DifferentiatorNode> *node, size_t neutralElementsCount, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
      PushLog (3);
 
     for (size_t neutralElement = 0; neutralElement < neutralElementsCount; neutralElement++) {
-        Tree::TreeEdge neutralElementEdge = GetChildNeutralElementEdge (&elements [neutralElement], node);
+        Tree::TreeEdge neutralElementEdge = GetChildNeutralElementEdge (&elements [neutralElement], node, reassignmentsBuffer);
 
         if (neutralElementEdge == Tree::NO_EDGE)
             continue;
@@ -142,14 +161,14 @@ static OptimizationStatus ProcessNeutralElements (Differentiator *differentiator
 
         Tree::Node <DifferentiatorNode> *nonNeutralNode = Tree::NextNode (node, nonNeutralEdge);
 
-        RETURN ProcessNeutralElement (differentiator, &elements [neutralElement], node, nonNeutralNode);
+        RETURN ProcessNeutralElement (differentiator, &elements [neutralElement], node, nonNeutralNode, reassignmentsBuffer);
     }
 
     RETURN OptimizationStatus::TREE_NOT_CHANGED;
 
 }
 
-static OptimizationStatus ProcessNeutralElement (Differentiator *differentiator, const NeutralElement *element, Tree::Node <DifferentiatorNode> *node, Tree::Node <DifferentiatorNode> *nextNode) {
+static OptimizationStatus ProcessNeutralElement (Differentiator *differentiator, const NeutralElement *element, Tree::Node <DifferentiatorNode> *node, Tree::Node <DifferentiatorNode> *nextNode, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
 
     Tree::Node <DifferentiatorNode> **nextNodePointer = NULL;
     Tree::Node <DifferentiatorNode> **nodePointer     = NULL;
@@ -170,16 +189,22 @@ static OptimizationStatus ProcessNeutralElement (Differentiator *differentiator,
 
     if (element->resultingNode == CollapseResult::COLLAPSED_TO_CONSTANT) {
         *nodePointer = Const (element->collapsedValue);
+        (*nodePointer)->parent = node->parent;
 
-        Tree::DestroySubtreeNode (&differentiator->expressionTree, node);
+        DestroyIfNotReassignment (node);
     }
 
     if (element->resultingNode == CollapseResult::EXPRESSION_NOT_CHANGED) {
         *nodePointer     = nextNode;
-        *nextNodePointer = NULL;
+        //*nextNodePointer = NULL;
         nextNode->parent = node->parent;
         
-        Tree::DestroySubtreeNode (&differentiator->expressionTree, node);
+        if (FindValueInBuffer(reassignmentsBuffer, &node, CompareReassignments)) {
+            node->nodeData.manualDelete = true;
+        } else {
+            *nextNodePointer = NULL;
+            Tree::DestroySubtreeNode (&differentiator->expressionTree, node);
+        }
     }
 
     #undef CheckChild
@@ -188,7 +213,7 @@ static OptimizationStatus ProcessNeutralElement (Differentiator *differentiator,
     return OptimizationStatus::TREE_CHANGED;
 }
 
-static Tree::TreeEdge GetChildNeutralElementEdge (const NeutralElement *element, Tree::Node <DifferentiatorNode> *node) {
+static Tree::TreeEdge GetChildNeutralElementEdge (const NeutralElement *element, Tree::Node <DifferentiatorNode> *node, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
         
     #define CheckForChild(child, edge)                                                                                                      \
         do {                                                                                                                                \
@@ -204,3 +229,4 @@ static Tree::TreeEdge GetChildNeutralElementEdge (const NeutralElement *element,
 
     return Tree::NO_EDGE;
 }
+

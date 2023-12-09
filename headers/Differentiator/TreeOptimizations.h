@@ -25,8 +25,7 @@ struct NeutralElement {
 
 typedef OptimizationStatus (* optimization_t) (Differentiator *, Tree::Node <DifferentiatorNode> *); 
 
-OptimizationStatus ComputeSubtree          (Differentiator *Differentiator, Tree::Node <DifferentiatorNode> *rootNode);
-OptimizationStatus CollapseNeutralElements (Differentiator *Differentiator, Tree::Node <DifferentiatorNode> *rootNode);
-
+OptimizationStatus ComputeSubtree          (Differentiator *Differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
+OptimizationStatus CollapseNeutralElements (Differentiator *Differentiator, Tree::Node <DifferentiatorNode> *rootNode, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
 
 #endif

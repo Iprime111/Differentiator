@@ -123,3 +123,7 @@ long long CompareNames (void *value1, void *value2) {
 
     return strcmp (record1->name, record2->name); 
 }
+
+long long CompareReassignments (void *value1, void *value2) {
+    return * ((Tree::Node <DifferentiatorNode> **) value1) - * ((Tree::Node <DifferentiatorNode> **) value2);
+}

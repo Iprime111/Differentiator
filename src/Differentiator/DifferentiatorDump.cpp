@@ -94,13 +94,16 @@ static DifferentiatorError EmitNodeData (Differentiator *differentiator, Tree::N
     switch (node->nodeData.type) {
         case NUMERIC_NODE: {
             snprintf (indexBuffer, MAX_NODE_INDEX_LENGTH, "%lf", node->nodeData.value.numericValue);
+
+            WriteToDumpWithErrorCheck (dumpBuffer, "{");
             WriteToDumpWithErrorCheck (dumpBuffer, indexBuffer);
-            RETURN NO_DIFFERENTIATOR_ERRORS;
+            break;
         }
 
         case OPERATION_NODE: {
             #define OPERATOR(NAME, DESIGNATION, PRIORITY, ...)              \
                 if (node->nodeData.value.operation == NAME) {               \
+                    WriteToDumpWithErrorCheck (dumpBuffer, "{");            \
                     WriteToDumpWithErrorCheck (dumpBuffer, DESIGNATION);    \
                 }
 
@@ -121,7 +124,8 @@ static DifferentiatorError EmitNodeData (Differentiator *differentiator, Tree::N
             WriteToDumpWithErrorCheck (dumpBuffer, differentiator->nameTable->data [node->nodeData.value.variableIndex].name);
             WriteToDumpWithErrorCheck (dumpBuffer, " | ");
             WriteToDumpWithErrorCheck (dumpBuffer, indexBuffer);
-            WriteToDumpWithErrorCheck (dumpBuffer, "}");
+
+
             break;
         }
 
@@ -129,6 +133,12 @@ static DifferentiatorError EmitNodeData (Differentiator *differentiator, Tree::N
             RETURN TREE_ERROR;
         }
     }
+
+    snprintf (indexBuffer, MAX_NODE_INDEX_LENGTH, "%lu", node->nodeData.depth);
+    WriteToDumpWithErrorCheck (dumpBuffer, " | ");
+    WriteToDumpWithErrorCheck (dumpBuffer, indexBuffer);
+    WriteToDumpWithErrorCheck (dumpBuffer, "}");
+
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }

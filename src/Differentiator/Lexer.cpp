@@ -65,7 +65,7 @@ ParsingError TreeLexer (ParsingContext *context, Differentiator *differentiator,
 
             symbol++;
 
-            const OperationData *operation = findOperationByDesignation (word);
+            const OperationData *operation = FindOperationByDesignation (word);
 
             if (operation) {
                 WriteNodePointer (OperationNode (NULL, NULL, operation->name));

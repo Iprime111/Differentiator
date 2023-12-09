@@ -11,7 +11,11 @@
 #include "DifferentiatorIO.h"
 
 static double EvalInternal (Differentiator *differentiator, const Tree::Node <DifferentiatorNode> *rootNode);
-static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode, FILE *stream);
+
+static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode,
+        FILE *stream, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
+
+
 
 DifferentiatorError EvalTree (Differentiator *differentiator, double *value) {
     PushLog (1);
@@ -62,7 +66,7 @@ static double EvalInternal (Differentiator *differentiator, const Tree::Node <Di
     RETURN NAN;
 }
 
-DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, FILE *stream) {
+DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, FILE *stream, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
     PushLog (2);
 
     custom_assert (differentiator, pointer_is_null, DIFFERENTIATOR_NULL_POINTER);
@@ -71,13 +75,14 @@ DifferentiatorError Differentiate (Differentiator *differentiator, Differentiato
     InitDifferentiator (newDifferentiator, differentiator->nameTable);
     Tree::DestroySingleNode (newDifferentiator->expressionTree.root);
 
-    newDifferentiator->expressionTree.root = DifferentiateInternal (differentiator, newDifferentiator, variableIndex, differentiator->expressionTree.root, stream);
+    newDifferentiator->expressionTree.root = DifferentiateInternal (differentiator, newDifferentiator, variableIndex, differentiator->expressionTree.root,
+            stream, reassignmentsBuffer);
 
     RETURN NO_DIFFERENTIATOR_ERRORS;
 }
 
 static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *differentiator, Differentiator *newDifferentiator, 
-        size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode, FILE *stream) {
+        size_t variableIndex, Tree::Node <DifferentiatorNode> *rootNode, FILE *stream, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
     PushLog (2);
 
     if (!rootNode) {
@@ -101,20 +106,21 @@ static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *d
             }                                                                                               \
         } while (0)
 
-    #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)        \
-        if (rootNode->nodeData.value.operation == NAME) {                                                   \
-            DIFF_CALLBACK                                                                                   \
-            SetParent (left);                                                                               \
-            SetParent (right);                                                                              \
-            if (rootNode->parent) {                                                                         \
-                PrintPhrase (stream);                                                                       \
-                fprintf (stream, "$$(");                                                                    \
-                WriteExpressionToStream (differentiator,    stream, rootNode,    WriteNodeContentToLatex);  \
-                fprintf (stream, ")^{'} = ");                                                               \
-                WriteExpressionToStream (newDifferentiator, stream, currentNode, WriteNodeContentToLatex);  \
-                fprintf (stream, "$$\n");                                                                   \
-            }                                                                                               \
-            RETURN currentNode;                                                                             \
+    #define OPERATOR(NAME, DESIGNATION, PRIORITY, EVAL_CALLBACK, LATEX_CALLBACK, DIFF_CALLBACK, ...)                                    \
+        if (rootNode->nodeData.value.operation == NAME) {                                                                               \
+            DIFF_CALLBACK                                                                                                               \
+            SetParent (left);                                                                                                           \
+            SetParent (right);                                                                                                          \
+            if (rootNode->parent) {                                                                                                     \
+                GetReassignments (newDifferentiator, reassignmentsBuffer, currentNode);                                                                    \
+                PrintPhrase (stream);                                                                                                   \
+                fprintf (stream, "$$(");                                                                                                \
+                WriteExpressionToStream (differentiator,    stream, rootNode,    WriteNodeContentToLatex, reassignmentsBuffer, false);  \
+                fprintf (stream, ")^{'} = ");                                                                                           \
+                WriteExpressionToStream (newDifferentiator, stream, currentNode, WriteNodeContentToLatex, reassignmentsBuffer, false);  \
+                fprintf (stream, "$$\n");                                                                                               \
+            }                                                                                                                           \
+            RETURN currentNode;                                                                                                         \
         }
 
     #include "DifferentiatorOperations.def"
@@ -124,7 +130,7 @@ static Tree::Node <DifferentiatorNode> *DifferentiateInternal (Differentiator *d
     RETURN NULL;
 }
 
-DifferentiatorError OptimizeTree (Differentiator *differentiator) {
+DifferentiatorError OptimizeTree (Differentiator *differentiator, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
     PushLog (4);
 
     custom_assert (differentiator, pointer_is_null, DIFFERENTIATOR_NULL_POINTER);
@@ -135,10 +141,38 @@ DifferentiatorError OptimizeTree (Differentiator *differentiator) {
     while (status == OptimizationStatus::TREE_CHANGED) {
         status = OptimizationStatus::TREE_NOT_CHANGED;
 
-        status = (OptimizationStatus) ((int) status | (int) ComputeSubtree          (differentiator, differentiator->expressionTree.root->left));
-        status = (OptimizationStatus) ((int) status | (int) CollapseNeutralElements (differentiator, differentiator->expressionTree.root->left));
+        status = (OptimizationStatus) ((int) status | (int) ComputeSubtree          (differentiator, differentiator->expressionTree.root->left, reassignmentsBuffer));
+        status = (OptimizationStatus) ((int) status | (int) CollapseNeutralElements (differentiator, differentiator->expressionTree.root->left, reassignmentsBuffer));
     }
     
     RETURN NO_DIFFERENTIATOR_ERRORS;
+}
+
+size_t GetReassignments (Differentiator *differentiator, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer, Tree::Node <DifferentiatorNode> *root) {
+    PushLog (3);
+
+    if (!root) {
+        RETURN 0;
+    }
+
+    size_t depth = 1;
+
+    if (root->nodeData.type == NUMERIC_NODE || root->nodeData.type == VARIABLE_NODE || root->nodeData.depth == 1) {
+        RETURN 1;
+    }
+
+    if (root->left)
+        depth += GetReassignments (differentiator, reassignmentsBuffer, root->left);
+
+    if (root->right)
+        depth += GetReassignments (differentiator, reassignmentsBuffer, root->right);
+
+    if (depth > MAX_DEPTH) {
+        WriteDataToBuffer (reassignmentsBuffer, &root, 1);
+        depth = 1;
+    }
+
+    root->nodeData.depth = depth;
+    RETURN depth;
 }
 

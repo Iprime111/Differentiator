@@ -24,7 +24,7 @@ static Tree::Node <DifferentiatorNode> *GetSeparator       (ParsingContext *cont
 
 static const getter_t NextFunction [] = {GetSeparator, GetBinaryOperation, GetUnaryOperation, GetBinaryOperation, GetBinaryOperation};
 
-DifferentiatorError ParseFile (Differentiator *differentiator, FILE *stream) {
+DifferentiatorError ParseFile (Differentiator *differentiator, FILE *stream, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer) {
     PushLog (2);
 
     FileBuffer fileContent = {};
@@ -43,6 +43,7 @@ DifferentiatorError ParseFile (Differentiator *differentiator, FILE *stream) {
     TreeLexer (&context, differentiator, &fileContent);
 
     differentiator->expressionTree.root->left = GetGrammar (&context, differentiator);
+    GetReassignments (differentiator, reassignmentsBuffer, differentiator->expressionTree.root->left);
 
     DestroyFileBuffer (&fileContent); 
    
@@ -100,7 +101,7 @@ static Tree::Node <DifferentiatorNode> *GetUnaryOperation (ParsingContext *conte
     }
     
     context->error = ParsingError::NO_PARSING_ERRORS;
-    const OperationData *operation = findOperationByName (context->tokens.data [context->currentNode]->nodeData.value.operation);
+    const OperationData *operation = FindOperationByName (context->tokens.data [context->currentNode]->nodeData.value.operation);
 
     if (context->tokens.data [context->currentNode]->nodeData.type == OPERATION_NODE) {
         SyntaxAssert (context->tokens.data [context->currentNode]->nodeData.value.operation != CLOSE_BRACKET && 
@@ -118,6 +119,8 @@ static Tree::Node <DifferentiatorNode> *GetUnaryOperation (ParsingContext *conte
     SyntaxAssert (operationNode->left, ParsingError::NUMBER_EXPECTED);
     operationNode->left->parent = operationNode;
 
+    operationNode->nodeData.depth = operationNode->left->nodeData.depth;
+
     RETURN operationNode; 
 }
 
@@ -129,7 +132,7 @@ static Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *cont
     SyntaxAssert (value, context->error);
 
     while (context->tokens.data [context->currentNode]->nodeData.type == OPERATION_NODE) {
-        const OperationData *operation = findOperationByName (context->tokens.data [context->currentNode]->nodeData.value.operation); 
+        const OperationData *operation = FindOperationByName (context->tokens.data [context->currentNode]->nodeData.value.operation); 
 
         SyntaxAssert (context->tokens.data [context->currentNode]->nodeData.value.operation != OPEN_BRACKET,  ParsingError::BINARY_OPERATION_EXPECTED);
 
@@ -148,6 +151,8 @@ static Tree::Node <DifferentiatorNode> *GetBinaryOperation (ParsingContext *cont
 
         operationNode->right = value2;
         value2->parent       = operationNode;
+
+        operationNode->nodeData.depth = value2->nodeData.depth + value->nodeData.depth;
 
         value = operationNode;
     }

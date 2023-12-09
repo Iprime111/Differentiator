@@ -8,7 +8,8 @@ Tree::Node <DifferentiatorNode> *CopySubtree (Tree::Node <DifferentiatorNode> *s
     Tree::Node <DifferentiatorNode> *rootCopy = {};
     Tree::InitNode (&rootCopy);
 
-    rootCopy->nodeData = subtreeRoot->nodeData;
+    rootCopy->nodeData       = subtreeRoot->nodeData;
+    rootCopy->nodeData.depth = subtreeRoot->nodeData.depth;
 
     #define CopyRootSubtree(direction)                                      \
         if (subtreeRoot->direction) {                                       \
@@ -36,11 +37,17 @@ Tree::Node <DifferentiatorNode> *CreateNode  (Tree::Node <DifferentiatorNode> no
     newNode->left     = node.left;
     newNode->parent   = node.parent;
 
-    if (newNode->left)
-        newNode->left->parent = newNode;
+    newNode->nodeData.depth = 1;
 
-    if (newNode->right)
-        newNode->right->parent = newNode;
+    if (newNode->left) {
+        newNode->left->parent   = newNode;
+        newNode->nodeData.depth += newNode->left->nodeData.depth;
+    }
+
+    if (newNode->right) {
+        newNode->right->parent  = newNode;
+        newNode->nodeData.depth += newNode->right->nodeData.depth;
+    }
 
     return newNode;
 }

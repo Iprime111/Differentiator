@@ -11,13 +11,13 @@
     }
 
 #define EvalSubtree(subtree) EvalInternal (differentiator, rootNode->subtree)
-#define WriteExpression(branch, emitter)                                                        \
-    do {                                                                                        \
-        if (rootNode->branch) {                                                                 \
-            WriteExpressionInternal (differentiator, rootNode->branch, printBuffer, emitter);   \
-        } else {                                                                                \
-            RETURN TREE_ERROR;                                                                  \
-        }                                                                                       \
+#define WriteExpression(branch, emitter)                                                                                    \
+    do {                                                                                                                    \
+        if (rootNode->branch) {                                                                                             \
+            WriteExpressionInternal (differentiator, rootNode->branch, printBuffer, emitter, reassignmentsBuffer, false);   \
+        } else {                                                                                                            \
+            RETURN TREE_ERROR;                                                                                              \
+        }                                                                                                                   \
     } while (0)
 
 #define WriteUnaryOperation(designator)                     \
@@ -33,7 +33,7 @@
         WriteExpression (right, WriteNodeContentToLatex);   \
     } while (0)
 
-#define Diff(direction) DifferentiateInternal (differentiator, newDifferentiator, variableIndex, rootNode->direction, stream)
+#define Diff(direction) DifferentiateInternal (differentiator, newDifferentiator, variableIndex, rootNode->direction, stream, reassignmentsBuffer)
 #define Copy(direction) CopySubtree (rootNode->direction)
 #define Const(number)   CreateNode (Tree::Node <DifferentiatorNode> {.left = NULL, .right = NULL, .parent = NULL, .nodeData = {.type = NUMERIC_NODE,  .value = {.numericValue  = number}}})
 #define Var(index)      CreateNode (Tree::Node <DifferentiatorNode> {.left = NULL, .right = NULL, .parent = NULL, .nodeData = {.type = VARIABLE_NODE, .value = {.variableIndex = index}}})

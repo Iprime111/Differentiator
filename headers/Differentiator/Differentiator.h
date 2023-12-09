@@ -63,7 +63,9 @@ union NodeValue {
 
 struct DifferentiatorNode {
     NodeType  type  = NUMERIC_NODE;
-    NodeValue value = {.numericValue = NAN}; 
+    NodeValue value = {.numericValue = NAN};
+    size_t    depth = 0;
+    bool      manualDelete = false;
 };
 
 struct NameTableRecord {
@@ -88,13 +90,16 @@ DifferentiatorError InitNameTable    (Buffer <NameTableRecord> *nameTable);
 DifferentiatorError DestroyNameTable (Buffer <NameTableRecord> *nameTable);
 
 DifferentiatorError EvalTree      (Differentiator *differentiator, double *value);
-DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, FILE *stream);
-DifferentiatorError OptimizeTree  (Differentiator *differentiator);
+DifferentiatorError Differentiate (Differentiator *differentiator, Differentiator *newDifferentiator, size_t variableIndex, FILE *stream, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
+DifferentiatorError OptimizeTree  (Differentiator *differentiator, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer);
 
-const OperationData *findOperationByName        (const Operation name);
-const OperationData *findOperationByDesignation (const char     *designation);
+size_t              GetReassignments (Differentiator *differentiator, Buffer <Tree::Node <DifferentiatorNode> *> *reassignmentsBuffer, Tree::Node <DifferentiatorNode> *root);
 
-long long CompareNames (void *value1, void *value2);
+const OperationData *FindOperationByName        (const Operation name);
+const OperationData *FindOperationByDesignation (const char     *designation);
+
+long long CompareNames         (void *value1, void *value2);
+long long CompareReassignments (void *value1, void *value2);
 
 #define WriteError(differentiator, error)  (differentiator)->errors = (DifferentiatorError) (error | (differentiator)->errors)
 #define ReturnError(differentiator, error)          \

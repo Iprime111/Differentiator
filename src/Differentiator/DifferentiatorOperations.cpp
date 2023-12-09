@@ -18,11 +18,11 @@ static const OperationData operations [] = {
         return NULL;                                                                            \
     } while (0)
 
-const OperationData *findOperationByName (const Operation name) {
+const OperationData *FindOperationByName (const Operation name) {
 
     FindOperation (operations [operationIndex].name == name);
 }
 
-const OperationData *findOperationByDesignation (const char *designation) {
+const OperationData *FindOperationByDesignation (const char *designation) {
     FindOperation(strcmp (operations [operationIndex].designation, designation) == 0); 
 }
